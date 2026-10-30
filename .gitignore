@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Notas locales para el asistente
+CLAUDE.md
+Prueba Tecnica - Backend Developer Python - GP.docx
