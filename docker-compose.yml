@@ -6,6 +6,17 @@ services:
     environment:
       PORT: 8080
       CORS_ORIGINS: http://localhost:3000
+      GOOGLE_CLOUD_PROJECT: ${GCP_PROJECT_ID}
+      GOOGLE_CLOUD_LOCATION: ${GCP_VERTEX_LOCATION:-global}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/adc.json
+    volumes:
+      # Credenciales ADC de la cuenta de desarrollo, en solo lectura. En Cloud Run se usa la service account.
+      - type: bind
+        source: ${GCP_ADC_PATH}
+        target: /secrets/adc.json
+        read_only: true
+        bind:
+          create_host_path: false
 
   frontend:
     build: ./frontend

@@ -1,0 +1,95 @@
+import pytest
+from fastapi.testclient import TestClient
+
+from app.exceptions import InvalidModelResponseError, NoItemsFoundError
+from app.main import app, get_extractor
+from app.models.output_schemas import Questionnaire
+from tests.conftest import DATA_DIR, EXAMPLES_DIR
+
+URL = "/v1/questionnaires/extract"
+SPEC_EXAMPLE = Questionnaire.model_validate_json((DATA_DIR / "spec_example.json").read_text(encoding="utf-8"))
+DOCX = (EXAMPLES_DIR / "01-tipo-doc" / "cuestionario.docx").read_bytes()
+
+
+class FakeExtractor:
+    def __init__(self, result=SPEC_EXAMPLE, error=None):
+        self.result = result
+        self.error = error
+        self.documents = []
+
+    async def extract(self, document):
+        self.documents.append(document)
+        if self.error:
+            raise self.error
+        return self.result
+
+
+@pytest.fixture
+def fake_extractor():
+    extractor = FakeExtractor()
+    app.dependency_overrides[get_extractor] = lambda: extractor
+    yield extractor
+    app.dependency_overrides.clear()
+
+
+client = TestClient(app)
+
+
+def upload(filename: str, content: bytes):
+    return client.post(URL, files={"file": (filename, content)})
+
+
+def test_returns_questionnaire_with_spanish_field_names(fake_extractor):
+    response = upload("cuestionario.docx", DOCX)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"titulo", "idioma", "total_items", "items"}
+    assert body["items"][0]["enunciado"] == SPEC_EXAMPLE.items[0].statement
+
+
+def test_passes_validated_document_to_extractor(fake_extractor):
+    upload("cuestionario.docx", DOCX)
+
+    [document] = fake_extractor.documents
+    assert document.filename == "cuestionario.docx"
+    assert document.content == DOCX
+
+
+@pytest.mark.parametrize(
+    ("filename", "content", "status", "code"),
+    [
+        ("cuestionario.doc", b"\xd0\xcf\x11\xe0", 415, "formato_invalido"),
+        ("cuestionario.pdf", DOCX, 415, "formato_invalido"),
+        ("cuestionario.pdf", b"", 400, "archivo_vacio"),
+    ],
+)
+def test_returns_error_for_invalid_files(fake_extractor, filename, content, status, code):
+    response = upload(filename, content)
+
+    assert response.status_code == status
+    assert response.json()["error"] == code
+    assert "detalle" in response.json()
+    assert fake_extractor.documents == []
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "code"),
+    [
+        (NoItemsFoundError("No se detectaron ítems."), 422, "sin_items"),
+        (InvalidModelResponseError("Respuesta inválida."), 502, "respuesta_invalida"),
+    ],
+)
+def test_returns_error_from_extractor(fake_extractor, error, status, code):
+    fake_extractor.error = error
+
+    response = upload("cuestionario.docx", DOCX)
+
+    assert response.status_code == status
+    assert response.json() == {"error": code, "detalle": str(error)}
+
+
+def test_requires_file():
+    response = client.post(URL)
+
+    assert response.status_code == 422

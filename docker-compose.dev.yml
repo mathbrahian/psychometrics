@@ -1,5 +1,9 @@
 # Modo desarrollo: código montado como volumen y recarga en caliente.
 # Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Este archivo se aplica encima de docker-compose.yml: hereda los puertos, las variables
+# de entorno y el volumen de credenciales, y solo cambia el comando y monta el código.
+# Para ver la configuración final: docker compose -f docker-compose.yml -f docker-compose.dev.yml config
 services:
   extractor-vertex:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload

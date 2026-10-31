@@ -1,0 +1,47 @@
+# Peticiones para probar extractor-vertex en local.
+# Requiere la extensión REST Client de VS Code (humao.rest-client): clic en "Send Request" sobre cada una.
+# Levantar antes el servicio: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+@baseUrl = http://localhost:8080
+
+### Estado del servicio
+GET {{baseUrl}}/health
+
+### Extraer cuestionario: caso 01 (.docx)
+POST {{baseUrl}}/v1/questionnaires/extract
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ../examples/01-tipo-doc/cuestionario.docx
+--boundary--
+
+### Error 415: formato no soportado (.doc)
+POST {{baseUrl}}/v1/questionnaires/extract
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.doc"
+Content-Type: application/msword
+
+contenido de un documento antiguo
+--boundary--
+
+### Error 415: el contenido no corresponde a la extensión (texto con extensión .pdf)
+POST {{baseUrl}}/v1/questionnaires/extract
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.pdf"
+Content-Type: application/pdf
+
+esto no es un PDF
+--boundary--
+
+### Error 422: falta el archivo
+POST {{baseUrl}}/v1/questionnaires/extract
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary--

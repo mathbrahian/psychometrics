@@ -1,0 +1,37 @@
+{
+  "titulo": "Questionario di esempio",
+  "idioma": "it",
+  "total_items": 3,
+  "items": [
+    {
+      "numero": 1,
+      "enunciado": "Mi preoccupo eccessivamente per cose di poca importanza.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        { "valor": 0, "texto": "Mai" },
+        { "valor": 1, "texto": "A volte" },
+        { "valor": 2, "texto": "Spesso" },
+        { "valor": 3, "texto": "Sempre" }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 2,
+      "enunciado": "Quale numero completa la serie: 2, 4, 8, 16, ...?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        { "valor": "A", "texto": "18" },
+        { "valor": "B", "texto": "24" },
+        { "valor": "C", "texto": "32" }
+      ],
+      "respuesta_correcta": "C"
+    },
+    {
+      "numero": 3,
+      "enunciado": "Descriva una situazione recente in cui si è sentito sotto pressione.",
+      "tipo": "desarrollo",
+      "alternativas": [],
+      "respuesta_correcta": null
+    }
+  ]
+}
