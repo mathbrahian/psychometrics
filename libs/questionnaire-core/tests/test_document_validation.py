@@ -1,8 +1,8 @@
 import pytest
 
-from app.document_validation import build_input_document, detect_format
-from app.exceptions import EmptyFileError, FileTooLargeError, UnsupportedFormatError
-from app.models.input_schemas import DocumentFormat
+from questionnaire_core.document_validation import build_input_document, detect_format
+from questionnaire_core.exceptions import EmptyFileError, FileTooLargeError, UnsupportedFormatError
+from questionnaire_core.models.input_schemas import DocumentFormat
 
 MAX_SIZE = 1024
 PDF = b"%PDF-1.4 contenido"

@@ -1,0 +1,278 @@
+{
+  "titulo": "Cuestionario de ejemplo – Hábitos de trabajo y cultura general",
+  "idioma": "es",
+  "total_items": 12,
+  "items": [
+    {
+      "numero": 1,
+      "enunciado": "Dejo para el último momento las tareas importantes.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Nunca"
+        },
+        {
+          "valor": 1,
+          "texto": "Casi nunca"
+        },
+        {
+          "valor": 2,
+          "texto": "Casi siempre"
+        },
+        {
+          "valor": 3,
+          "texto": "Siempre"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 2,
+      "enunciado": "Me siento satisfecho con el trabajo que realizo.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Nunca"
+        },
+        {
+          "valor": 1,
+          "texto": "Casi nunca"
+        },
+        {
+          "valor": 2,
+          "texto": "Casi siempre"
+        },
+        {
+          "valor": 3,
+          "texto": "Siempre"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 3,
+      "enunciado": "Prefiero trabajar solo antes que en equipo.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Totalmente en desacuerdo"
+        },
+        {
+          "valor": 1,
+          "texto": "En desacuerdo"
+        },
+        {
+          "valor": 2,
+          "texto": "Neutral"
+        },
+        {
+          "valor": 3,
+          "texto": "De acuerdo"
+        },
+        {
+          "valor": 4,
+          "texto": "Totalmente de acuerdo"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 4,
+      "enunciado": "¿Cuál es el resultado de 15 × 4?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "45"
+        },
+        {
+          "valor": "B",
+          "texto": "60"
+        },
+        {
+          "valor": "C",
+          "texto": "65"
+        },
+        {
+          "valor": "D",
+          "texto": "54"
+        }
+      ],
+      "respuesta_correcta": "B"
+    },
+    {
+      "numero": 5,
+      "enunciado": "¿Qué planeta es conocido como el planeta rojo?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "Venus"
+        },
+        {
+          "valor": "B",
+          "texto": "Júpiter"
+        },
+        {
+          "valor": "C",
+          "texto": "Marte"
+        }
+      ],
+      "respuesta_correcta": "C"
+    },
+    {
+      "numero": 6,
+      "enunciado": "Complete la analogía: mano es a guante como pie es a ...",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "camisa"
+        },
+        {
+          "valor": "B",
+          "texto": "zapato"
+        },
+        {
+          "valor": "C",
+          "texto": "sombrero"
+        },
+        {
+          "valor": "D",
+          "texto": "bufanda"
+        }
+      ],
+      "respuesta_correcta": "B"
+    },
+    {
+      "numero": 7,
+      "enunciado": "¿Cuántos lados tiene un hexágono?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "5"
+        },
+        {
+          "valor": "B",
+          "texto": "6"
+        },
+        {
+          "valor": "C",
+          "texto": "7"
+        },
+        {
+          "valor": "D",
+          "texto": "8"
+        }
+      ],
+      "respuesta_correcta": "B"
+    },
+    {
+      "numero": 8,
+      "enunciado": "El océano Pacífico es el más grande del mundo.",
+      "tipo": "verdadero_falso",
+      "alternativas": [
+        {
+          "valor": "V",
+          "texto": "Verdadero"
+        },
+        {
+          "valor": "F",
+          "texto": "Falso"
+        }
+      ],
+      "respuesta_correcta": "V"
+    },
+    {
+      "numero": 9,
+      "enunciado": "Los murciélagos son aves.",
+      "tipo": "verdadero_falso",
+      "alternativas": [
+        {
+          "valor": "V",
+          "texto": "Verdadero"
+        },
+        {
+          "valor": "F",
+          "texto": "Falso"
+        }
+      ],
+      "respuesta_correcta": "F"
+    },
+    {
+      "numero": 10,
+      "enunciado": "Describa una situación reciente en la que tuvo que resolver un conflicto con un compañero de trabajo.",
+      "tipo": "desarrollo",
+      "alternativas": [],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 11,
+      "enunciado": "Relacione cada autor con su obra.",
+      "tipo": "emparejamiento",
+      "alternativas": [
+        {
+          "valor": 1,
+          "texto": "Gabriel García Márquez"
+        },
+        {
+          "valor": 2,
+          "texto": "Miguel de Cervantes"
+        },
+        {
+          "valor": 3,
+          "texto": "Jorge Isaacs"
+        },
+        {
+          "valor": "a",
+          "texto": "María"
+        },
+        {
+          "valor": "b",
+          "texto": "Don Quijote de la Mancha"
+        },
+        {
+          "valor": "c",
+          "texto": "Cien años de soledad"
+        }
+      ],
+      "respuesta_correcta": "1-c; 2-b; 3-a"
+    },
+    {
+      "numero": 12,
+      "enunciado": "Relacione cada animal con su clase.",
+      "tipo": "emparejamiento",
+      "alternativas": [
+        {
+          "valor": 1,
+          "texto": "Delfín"
+        },
+        {
+          "valor": 2,
+          "texto": "Águila"
+        },
+        {
+          "valor": 3,
+          "texto": "Rana"
+        },
+        {
+          "valor": "a",
+          "texto": "Ave"
+        },
+        {
+          "valor": "b",
+          "texto": "Anfibio"
+        },
+        {
+          "valor": "c",
+          "texto": "Mamífero"
+        }
+      ],
+      "respuesta_correcta": "1-c; 2-a; 3-b"
+    }
+  ]
+}

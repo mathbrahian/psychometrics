@@ -1,4 +1,4 @@
-from app.document_reader import docx_to_text, xlsx_to_text
+from questionnaire_core.document_reader import docx_to_text, xlsx_to_text
 from tests.conftest import EXAMPLES_DIR
 
 

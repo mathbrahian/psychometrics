@@ -8,10 +8,10 @@ API en FastAPI que recibe un cuestionario (PDF, Word o Excel) y devuelve sus ít
 
 ## Correr localmente
 
-Desde la carpeta `extractor-vertex/`:
+Desde la raíz del repo, porque la imagen incluye la librería compartida [`libs/questionnaire-core`](../libs/questionnaire-core):
 
 ```bash
-docker build -t extractor-vertex .
+docker build -t extractor-vertex -f extractor-vertex/Dockerfile .
 docker run --rm -p 8080:8080 extractor-vertex
 ```
 
@@ -48,6 +48,8 @@ docker run --rm -e PORT=9000 -p 9000:9000 extractor-vertex
 ## Tests
 
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
-pytest -v
+pip install -e "libs/questionnaire-core[dev]" -r extractor-vertex/requirements.txt
+cd extractor-vertex && pytest -v
 ```
+
+La lógica de extracción y sus tests están en `libs/questionnaire-core`. Este servicio solo prueba la creación del cliente de Vertex AI.

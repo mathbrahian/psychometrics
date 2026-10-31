@@ -1,6 +1,8 @@
 services:
   extractor-vertex:
-    build: ./extractor-vertex
+    build:
+      context: .
+      dockerfile: extractor-vertex/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -17,6 +19,18 @@ services:
         read_only: true
         bind:
           create_host_path: false
+
+  extractor-gemini:
+    build:
+      context: .
+      dockerfile: extractor-gemini/Dockerfile
+    ports:
+      - "7070:7070"
+    environment:
+      PORT: 7070
+      CORS_ORIGINS: http://localhost:3000
+      # API key de AI Studio, desde .env. Nunca va en el repositorio.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
   frontend:
     build: ./frontend

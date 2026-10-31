@@ -9,6 +9,14 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
     volumes:
       - ./extractor-vertex/app:/app/app
+      # La librería compartida montada sobre la instalada, para que sus cambios también recarguen.
+      - ./libs/questionnaire-core/questionnaire_core:/app/questionnaire_core
+
+  extractor-gemini:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 7070 --reload
+    volumes:
+      - ./extractor-gemini/app:/app/app
+      - ./libs/questionnaire-core/questionnaire_core:/app/questionnaire_core
 
   frontend:
     build:

@@ -7,14 +7,14 @@ from fastapi.testclient import TestClient
 from google.genai import types
 from openpyxl import Workbook
 
-from app.config import settings
-from app.document_reader import xlsx_sheets_to_text
-from app.exceptions import NoItemsFoundError, TooManySheetsError
-from app.main import app, get_extractor
-from app.models.input_schemas import InputDocument
-from app.models.output_schemas import Questionnaire, SheetResult
-from app.questionnaire_extractor import QuestionnaireExtractor
-from tests.conftest import DATA_DIR, EXAMPLES_DIR
+from questionnaire_core.document_reader import xlsx_sheets_to_text
+from questionnaire_core.exceptions import NoItemsFoundError, TooManySheetsError
+from questionnaire_core.api import get_extractor
+from questionnaire_core.models.input_schemas import InputDocument
+from questionnaire_core.models.output_schemas import Questionnaire, SheetResult
+from questionnaire_core.extractor import QuestionnaireExtractor
+from tests.conftest import DATA_DIR, EXAMPLES_DIR, TEST_SETTINGS
+from tests.conftest import test_app as app
 
 SPEC_EXAMPLE = (DATA_DIR / "spec_example.json").read_text(encoding="utf-8")
 XLSX = (EXAMPLES_DIR / "02-tipo-xlsx" / "cuestionario.xlsx").read_bytes()
@@ -51,7 +51,7 @@ class FakeModels:
 def make_extractor(texts: list[str | None]):
     models = FakeModels(texts)
     client = SimpleNamespace(aio=SimpleNamespace(models=models))
-    return QuestionnaireExtractor(client=client), models
+    return QuestionnaireExtractor(client=client, settings=TEST_SETTINGS), models
 
 
 def xlsx_document(content: bytes) -> InputDocument:
@@ -106,7 +106,7 @@ async def test_raises_when_all_sheets_are_empty():
 
 
 async def test_raises_when_too_many_sheets():
-    sheets = {f"Hoja{i}": [["contenido"]] for i in range(settings.MAX_SHEETS + 1)}
+    sheets = {f"Hoja{i}": [["contenido"]] for i in range(TEST_SETTINGS.MAX_SHEETS + 1)}
     extractor, models = make_extractor([])
 
     with pytest.raises(TooManySheetsError):

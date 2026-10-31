@@ -1,0 +1,28 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ExtractorSettings(BaseSettings):
+    """Configuración común de los extractores, leída de variables de entorno.
+
+    Cada servicio la extiende con los datos de su proveedor (Vertex AI o Gemini API).
+    """
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    CORS_ORIGINS: str = ""
+    MAX_FILE_SIZE_MB: int = 10
+    MAX_SHEETS: int = 10
+
+    GENAI_MODEL: str = "gemini-3.8-flash"
+    MAX_OUTPUT_TOKENS: int = 32768
+    TEMPERATURE: float = 0.0
+    TOP_P: float = 0.95
+    SEED: int = 0
+
+    @property
+    def max_file_size_bytes(self) -> int:
+        return self.MAX_FILE_SIZE_MB * 1024 * 1024
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
