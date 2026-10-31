@@ -195,6 +195,38 @@ Las variables de la terminal (`REG`, `EV_URL`, `FE_URL`) solo existen en la sesi
 gcloud run services describe frontend --format="value(spec.template.spec.containers[0].env)"
 ```
 
+#### Problema: cada servicio tiene dos URLs
+
+Después del despliegue, el frontend mostraba *"No se pudo conectar con extractor-vertex"* al abrirse desde la URL que aparece en la consola de GCP.
+
+**Causa:** Cloud Run asigna dos URLs a cada servicio y `CORS_ORIGINS` solo tenía una:
+
+| Formato  | Ejemplo                                                | Cómo se forma                                              |
+|----------|--------------------------------------------------------|------------------------------------------------------------|
+| Antiguo  | `https://frontend-<hash>-uc.a.run.app`                 | Hash generado por Google y código abreviado de la región. No se conoce antes del primer despliegue. |
+| Nuevo    | `https://frontend-<PROJECT_NUMBER>.us-central1.run.app` | Nombre del servicio, número de proyecto y región. Se puede calcular antes de desplegar. |
+
+Google introdujo el formato nuevo (*deterministic URLs*) para que la URL sea predecible, y mantiene el antiguo por compatibilidad. `status.url` sigue devolviendo el antiguo, mientras que la consola muestra el nuevo. Por eso el CORS se configuró con una URL y la app se abrió desde la otra.
+
+**Las URLs no cambian entre despliegues.** Cada despliegue crea una revisión nueva, pero ambas URLs se mantienen mientras exista el servicio. Solo cambian si el servicio se recrea con otro nombre, en otra región o en otro proyecto.
+
+**Solución:** permitir las dos URLs en `CORS_ORIGINS`, una sola vez:
+
+```bash
+gcloud run services update extractor-vertex \
+  --update-env-vars="^@^CORS_ORIGINS=https://frontend-<hash>-uc.a.run.app,https://frontend-<PROJECT_NUMBER>.us-central1.run.app"
+```
+
+El prefijo `^@^` cambia el separador de variables de `gcloud` a `@`, para que la coma quede dentro del valor.
+
+Para consultar las dos URLs de un servicio:
+
+```bash
+gcloud run services describe frontend --format="value(metadata.annotations['run.googleapis.com/urls'])"
+```
+
+**Decisión:** se usa el formato nuevo como URL oficial, en el README y en las variables de entorno, porque es predecible. El antiguo se sigue permitiendo en el CORS porque cualquiera puede abrir la app por esa URL.
+
 ### Paso 4: Workload Identity Federation
 
 GitHub Actions obtiene un token temporal de GCP solo para este repositorio, sin guardar llaves JSON.
@@ -238,14 +270,25 @@ gcloud iam service-accounts add-iam-policy-binding $SA \
 
 El `--attribute-condition` garantiza que solo los tokens emitidos para `mathbrahian/psychometrics` sean aceptados.
 
-Variables en GitHub (Settings → Secrets and variables → Actions → **Variables**). No son secretas:
+Variables en GitHub (Settings → Secrets and variables → Actions → **Variables**). No son secretas, pero aquí se muestran con valores de ejemplo:
 
-| Variable              | Valor                                                                                         |
-|-----------------------|-----------------------------------------------------------------------------------------------|
-| `GCP_PROJECT_ID`      | `psychometrics-brahi`                                                                         |
-| `GCP_REGION`          | `us-central1`                                                                                 |
-| `GCP_WIF_PROVIDER`    | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github-provider` |
-| `GCP_SERVICE_ACCOUNT` | `github-deployer@psychometrics-brahi.iam.gserviceaccount.com`                                 |
+| Variable              | Valor de ejemplo                                                                               |
+|-----------------------|------------------------------------------------------------------------------------------------|
+| `GCP_PROJECT_ID`      | `mi-proyecto-123`                                                                              |
+| `GCP_REGION`          | `us-central1`                                                                                  |
+| `GCP_WIF_PROVIDER`    | `projects/000000000000/locations/global/workloadIdentityPools/github/providers/github-provider` |
+| `GCP_SERVICE_ACCOUNT` | `github-deployer@mi-proyecto-123.iam.gserviceaccount.com`                                      |
+
+Se pueden crear desde la terminal con `gh`:
+
+```bash
+gh variable set GCP_PROJECT_ID -R <usuario>/<repo> --body "mi-proyecto-123"
+gh variable set GCP_REGION -R <usuario>/<repo> --body "us-central1"
+gh variable set GCP_WIF_PROVIDER -R <usuario>/<repo> --body "projects/000000000000/locations/global/workloadIdentityPools/github/providers/github-provider"
+gh variable set GCP_SERVICE_ACCOUNT -R <usuario>/<repo> --body "github-deployer@mi-proyecto-123.iam.gserviceaccount.com"
+```
+
+El número de proyecto se obtiene con `gcloud projects describe <PROJECT_ID> --format="value(projectNumber)"`.
 
 ### Paso 5: tests y pipeline de GitHub Actions
 
