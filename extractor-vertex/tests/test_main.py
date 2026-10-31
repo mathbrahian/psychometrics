@@ -1,10 +1,6 @@
-import os
+from fastapi.testclient import TestClient
 
-os.environ["CORS_ORIGINS"] = "http://localhost:3000"
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import app  # noqa: E402
+from app.main import app
 
 client = TestClient(app)
 
@@ -23,13 +19,13 @@ def test_health():
     assert response.json() == {"status": "ok"}
 
 
-def test_cors_permite_origen_configurado():
+def test_cors_allows_configured_origin():
     response = client.get("/", headers={"Origin": "http://localhost:3000"})
 
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
 
 
-def test_cors_rechaza_otro_origen():
+def test_cors_rejects_other_origin():
     response = client.get("/", headers={"Origin": "http://otro-sitio.com"})
 
     assert "access-control-allow-origin" not in response.headers

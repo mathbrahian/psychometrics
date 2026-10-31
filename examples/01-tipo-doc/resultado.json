@@ -1,0 +1,58 @@
+{
+  "titulo": "Cuestionario de ejemplo",
+  "idioma": "es",
+  "total_items": 3,
+  "items": [
+    {
+      "numero": 1,
+      "enunciado": "Me preocupo excesivamente por cosas de poca importancia.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Nunca"
+        },
+        {
+          "valor": 1,
+          "texto": "A veces"
+        },
+        {
+          "valor": 2,
+          "texto": "A menudo"
+        },
+        {
+          "valor": 3,
+          "texto": "Siempre"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 2,
+      "enunciado": "¿Qué número completa la siguiente serie: 2, 4, 8, 16, …?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "18"
+        },
+        {
+          "valor": "B",
+          "texto": "24"
+        },
+        {
+          "valor": "C",
+          "texto": "32"
+        }
+      ],
+      "respuesta_correcta": "C"
+    },
+    {
+      "numero": 3,
+      "enunciado": "Describa una situación reciente en la que se haya sentido bajo presión.",
+      "tipo": "desarrollo",
+      "alternativas": [],
+      "respuesta_correcta": null
+    }
+  ]
+}

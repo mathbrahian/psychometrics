@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     CORS_ORIGINS: str = ""
+    MAX_FILE_SIZE_MB: int = 10
 
     # Vertex AI. Las credenciales salen de ADC: archivo montado en local,
     # service account del servicio en Cloud Run.
@@ -17,6 +18,10 @@ class Settings(BaseSettings):
     TEMPERATURE: float = 0.0
     TOP_P: float = 0.95
     SEED: int = 0
+
+    @property
+    def max_file_size_bytes(self) -> int:
+        return self.MAX_FILE_SIZE_MB * 1024 * 1024
 
     @property
     def cors_origins(self) -> list[str]:

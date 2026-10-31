@@ -5,6 +5,7 @@ from google.genai import types
 from pydantic import ValidationError
 
 from app.config import settings
+from app.document_reader import docx_to_text
 from app.exceptions import (
     InvalidModelResponseError,
     NoItemsFoundError,
@@ -86,7 +87,14 @@ class QuestionnaireExtractor:
         if document.format == DocumentFormat.PDF:
             return types.Part.from_bytes(data=document.content, mime_type=MIME_TYPES[DocumentFormat.PDF])
 
-        # Gemini no lee .docx ni .xlsx directamente: se convertirán a texto en la siguiente parte.
+        # Gemini no lee .docx ni .xlsx directamente: se envían como texto.
+        if document.format == DocumentFormat.DOCX:
+            text = docx_to_text(document.content)
+            if not text:
+                msg = "El documento no tiene texto."
+                raise NoItemsFoundError(msg)
+            return types.Part.from_text(text=text)
+
         msg = f"El formato {document.format.value} todavía no está soportado."
         raise UnsupportedFormatError(msg)
 

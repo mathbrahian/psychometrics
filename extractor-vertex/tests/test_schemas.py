@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from app.models.input_schemas import DocumentFormat, InputDocument
 from app.models.output_schemas import Item, ItemType, Questionnaire
+from tests.conftest import EXAMPLES_DIR
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -78,3 +79,12 @@ def test_input_document_computes_size():
 def test_input_document_rejects_unsupported_format():
     with pytest.raises(ValidationError):
         InputDocument(filename="test.txt", format="txt", content=b"hola")
+
+
+@pytest.mark.parametrize("result_file", sorted(EXAMPLES_DIR.glob("*/resultado.json")), ids=lambda p: p.parent.name)
+def test_example_results_match_schema(result_file):
+    data = json.loads(result_file.read_text(encoding="utf-8"))
+
+    questionnaire = Questionnaire.model_validate(data)
+
+    assert questionnaire.total_items == len(questionnaire.items)

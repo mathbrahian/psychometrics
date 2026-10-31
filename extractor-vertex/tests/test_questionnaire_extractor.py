@@ -14,6 +14,7 @@ from app.exceptions import (
 from app.models.input_schemas import InputDocument
 from app.models.output_schemas import Questionnaire
 from app.questionnaire_extractor import QuestionnaireExtractor
+from tests.conftest import EXAMPLES_DIR
 
 SPEC_EXAMPLE = (Path(__file__).parent / "data" / "spec_example.json").read_text(encoding="utf-8")
 PDF_DOCUMENT = InputDocument(filename="test.pdf", format="pdf", content=b"%PDF-1.4 fake")
@@ -92,9 +93,20 @@ async def test_raises_when_no_items_found():
         await extractor.extract(PDF_DOCUMENT)
 
 
-async def test_docx_not_supported_yet():
+async def test_sends_docx_as_text():
     extractor, models = make_extractor(SPEC_EXAMPLE)
-    document = InputDocument(filename="test.docx", format="docx", content=b"fake")
+    content = (EXAMPLES_DIR / "01-tipo-doc" / "cuestionario.docx").read_bytes()
+    document = InputDocument(filename="cuestionario.docx", format="docx", content=content)
+
+    await extractor.extract(document)
+
+    [part] = models.calls[0]["contents"]
+    assert part.text.startswith("Cuestionario de ejemplo")
+
+
+async def test_xlsx_not_supported_yet():
+    extractor, models = make_extractor(SPEC_EXAMPLE)
+    document = InputDocument(filename="test.xlsx", format="xlsx", content=b"PK\x03\x04")
 
     with pytest.raises(UnsupportedFormatError):
         await extractor.extract(document)
