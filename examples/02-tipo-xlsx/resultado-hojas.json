@@ -1,0 +1,692 @@
+[
+  {
+    "hoja": "Cuestionario_ES",
+    "cuestionario": {
+      "titulo": "Cuestionario de ejemplo – Bienestar y razonamiento",
+      "idioma": "es",
+      "total_items": 10,
+      "items": [
+        {
+          "numero": 1,
+          "enunciado": "Me preocupo en exceso por cosas de poca importancia.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Nunca"
+            },
+            {
+              "valor": 1,
+              "texto": "A veces"
+            },
+            {
+              "valor": 2,
+              "texto": "Frecuentemente"
+            },
+            {
+              "valor": 3,
+              "texto": "Siempre"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 2,
+          "enunciado": "Me cuesta concentrarme cuando hay ruido a mi alrededor.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Nunca"
+            },
+            {
+              "valor": 1,
+              "texto": "A veces"
+            },
+            {
+              "valor": 2,
+              "texto": "Frecuentemente"
+            },
+            {
+              "valor": 3,
+              "texto": "Siempre"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 3,
+          "enunciado": "Disfruto trabajando en equipo.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Totalmente en desacuerdo"
+            },
+            {
+              "valor": 1,
+              "texto": "En desacuerdo"
+            },
+            {
+              "valor": 2,
+              "texto": "Neutral"
+            },
+            {
+              "valor": 3,
+              "texto": "De acuerdo"
+            },
+            {
+              "valor": 4,
+              "texto": "Totalmente de acuerdo"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 4,
+          "enunciado": "¿Qué número completa la serie: 3, 6, 12, 24, ...?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "36"
+            },
+            {
+              "valor": "B",
+              "texto": "42"
+            },
+            {
+              "valor": "C",
+              "texto": "48"
+            },
+            {
+              "valor": "D",
+              "texto": "30"
+            }
+          ],
+          "respuesta_correcta": "C"
+        },
+        {
+          "numero": 5,
+          "enunciado": "¿Cuál es la capital de Colombia?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "Medellín"
+            },
+            {
+              "valor": "B",
+              "texto": "Bogotá"
+            },
+            {
+              "valor": "C",
+              "texto": "Cali"
+            },
+            {
+              "valor": "D",
+              "texto": "Cartagena"
+            }
+          ],
+          "respuesta_correcta": "B"
+        },
+        {
+          "numero": 6,
+          "enunciado": "Si un tren recorre 120 km en 2 horas, ¿cuál es su velocidad media?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "40 km/h"
+            },
+            {
+              "valor": "B",
+              "texto": "50 km/h"
+            },
+            {
+              "valor": "C",
+              "texto": "60 km/h"
+            },
+            {
+              "valor": "D",
+              "texto": "80 km/h"
+            }
+          ],
+          "respuesta_correcta": "C"
+        },
+        {
+          "numero": 7,
+          "enunciado": "El agua hierve a 100 °C al nivel del mar.",
+          "tipo": "verdadero_falso",
+          "alternativas": [
+            {
+              "valor": "V",
+              "texto": "Verdadero"
+            },
+            {
+              "valor": "F",
+              "texto": "Falso"
+            }
+          ],
+          "respuesta_correcta": "V"
+        },
+        {
+          "numero": 8,
+          "enunciado": "La Tierra es el planeta más cercano al Sol.",
+          "tipo": "verdadero_falso",
+          "alternativas": [
+            {
+              "valor": "V",
+              "texto": "Verdadero"
+            },
+            {
+              "valor": "F",
+              "texto": "Falso"
+            }
+          ],
+          "respuesta_correcta": "F"
+        },
+        {
+          "numero": 9,
+          "enunciado": "Describa una situación reciente en la que se sintió bajo presión.",
+          "tipo": "desarrollo",
+          "alternativas": [],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 10,
+          "enunciado": "Relacione cada país con su capital.",
+          "tipo": "emparejamiento",
+          "alternativas": [
+            {
+              "valor": 1,
+              "texto": "Italia"
+            },
+            {
+              "valor": 2,
+              "texto": "Francia"
+            },
+            {
+              "valor": 3,
+              "texto": "España"
+            },
+            {
+              "valor": "a",
+              "texto": "Madrid"
+            },
+            {
+              "valor": "b",
+              "texto": "Roma"
+            },
+            {
+              "valor": "c",
+              "texto": "París"
+            }
+          ],
+          "respuesta_correcta": "1-b; 2-c; 3-a"
+        }
+      ]
+    },
+    "error": null
+  },
+  {
+    "hoja": "Cuestionario_IT",
+    "cuestionario": {
+      "titulo": "Questionario di esempio – Benessere e ragionamento",
+      "idioma": "it",
+      "total_items": 10,
+      "items": [
+        {
+          "numero": 1,
+          "enunciado": "Mi preoccupo eccessivamente per cose di poca importanza.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Mai"
+            },
+            {
+              "valor": 1,
+              "texto": "A volte"
+            },
+            {
+              "valor": 2,
+              "texto": "Spesso"
+            },
+            {
+              "valor": 3,
+              "texto": "Sempre"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 2,
+          "enunciado": "Faccio fatica a concentrarmi quando c'è rumore intorno a me.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Mai"
+            },
+            {
+              "valor": 1,
+              "texto": "A volte"
+            },
+            {
+              "valor": 2,
+              "texto": "Spesso"
+            },
+            {
+              "valor": 3,
+              "texto": "Sempre"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 3,
+          "enunciado": "Mi piace lavorare in gruppo.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Per niente d'accordo"
+            },
+            {
+              "valor": 1,
+              "texto": "Poco d'accordo"
+            },
+            {
+              "valor": 2,
+              "texto": "Neutrale"
+            },
+            {
+              "valor": 3,
+              "texto": "Abbastanza d'accordo"
+            },
+            {
+              "valor": 4,
+              "texto": "Del tutto d'accordo"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 4,
+          "enunciado": "Quale numero completa la serie: 3, 6, 12, 24, ...?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "36"
+            },
+            {
+              "valor": "B",
+              "texto": "42"
+            },
+            {
+              "valor": "C",
+              "texto": "48"
+            },
+            {
+              "valor": "D",
+              "texto": "30"
+            }
+          ],
+          "respuesta_correcta": "C"
+        },
+        {
+          "numero": 5,
+          "enunciado": "Qual è la capitale d'Italia?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "Milano"
+            },
+            {
+              "valor": "B",
+              "texto": "Roma"
+            },
+            {
+              "valor": "C",
+              "texto": "Napoli"
+            },
+            {
+              "valor": "D",
+              "texto": "Torino"
+            }
+          ],
+          "respuesta_correcta": "B"
+        },
+        {
+          "numero": 6,
+          "enunciado": "Se un treno percorre 120 km in 2 ore, qual è la sua velocità media?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "40 km/h"
+            },
+            {
+              "valor": "B",
+              "texto": "50 km/h"
+            },
+            {
+              "valor": "C",
+              "texto": "60 km/h"
+            },
+            {
+              "valor": "D",
+              "texto": "80 km/h"
+            }
+          ],
+          "respuesta_correcta": "C"
+        },
+        {
+          "numero": 7,
+          "enunciado": "L'acqua bolle a 100 °C al livello del mare.",
+          "tipo": "verdadero_falso",
+          "alternativas": [
+            {
+              "valor": "V",
+              "texto": "Vero"
+            },
+            {
+              "valor": "F",
+              "texto": "Falso"
+            }
+          ],
+          "respuesta_correcta": "V"
+        },
+        {
+          "numero": 8,
+          "enunciado": "La Terra è il pianeta più vicino al Sole.",
+          "tipo": "verdadero_falso",
+          "alternativas": [
+            {
+              "valor": "V",
+              "texto": "Vero"
+            },
+            {
+              "valor": "F",
+              "texto": "Falso"
+            }
+          ],
+          "respuesta_correcta": "F"
+        },
+        {
+          "numero": 9,
+          "enunciado": "Descriva una situazione recente in cui si è sentito sotto pressione.",
+          "tipo": "desarrollo",
+          "alternativas": [],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 10,
+          "enunciado": "Abbini ogni paese alla sua capitale.",
+          "tipo": "emparejamiento",
+          "alternativas": [
+            {
+              "valor": 1,
+              "texto": "Italia"
+            },
+            {
+              "valor": 2,
+              "texto": "Francia"
+            },
+            {
+              "valor": 3,
+              "texto": "Spagna"
+            },
+            {
+              "valor": "a",
+              "texto": "Madrid"
+            },
+            {
+              "valor": "b",
+              "texto": "Roma"
+            },
+            {
+              "valor": "c",
+              "texto": "Parigi"
+            }
+          ],
+          "respuesta_correcta": "1-b; 2-c; 3-a"
+        }
+      ]
+    },
+    "error": null
+  },
+  {
+    "hoja": "Cuestionario_EN",
+    "cuestionario": {
+      "titulo": "Sample Questionnaire – Well-being and Reasoning",
+      "idioma": "en",
+      "total_items": 10,
+      "items": [
+        {
+          "numero": 1,
+          "enunciado": "I worry excessively about unimportant things.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Never"
+            },
+            {
+              "valor": 1,
+              "texto": "Sometimes"
+            },
+            {
+              "valor": 2,
+              "texto": "Often"
+            },
+            {
+              "valor": 3,
+              "texto": "Always"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 2,
+          "enunciado": "I find it hard to concentrate when there is noise around me.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Never"
+            },
+            {
+              "valor": 1,
+              "texto": "Sometimes"
+            },
+            {
+              "valor": 2,
+              "texto": "Often"
+            },
+            {
+              "valor": 3,
+              "texto": "Always"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 3,
+          "enunciado": "I enjoy working in a team.",
+          "tipo": "escala_likert",
+          "alternativas": [
+            {
+              "valor": 0,
+              "texto": "Strongly disagree"
+            },
+            {
+              "valor": 1,
+              "texto": "Disagree"
+            },
+            {
+              "valor": 2,
+              "texto": "Neutral"
+            },
+            {
+              "valor": 3,
+              "texto": "Agree"
+            },
+            {
+              "valor": 4,
+              "texto": "Strongly agree"
+            }
+          ],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 4,
+          "enunciado": "Which number completes the series: 3, 6, 12, 24, ...?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "36"
+            },
+            {
+              "valor": "B",
+              "texto": "42"
+            },
+            {
+              "valor": "C",
+              "texto": "48"
+            },
+            {
+              "valor": "D",
+              "texto": "30"
+            }
+          ],
+          "respuesta_correcta": "C"
+        },
+        {
+          "numero": 5,
+          "enunciado": "What is the capital of Canada?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "Toronto"
+            },
+            {
+              "valor": "B",
+              "texto": "Ottawa"
+            },
+            {
+              "valor": "C",
+              "texto": "Vancouver"
+            },
+            {
+              "valor": "D",
+              "texto": "Montreal"
+            }
+          ],
+          "respuesta_correcta": "B"
+        },
+        {
+          "numero": 6,
+          "enunciado": "If a train travels 120 km in 2 hours, what is its average speed?",
+          "tipo": "seleccion_multiple",
+          "alternativas": [
+            {
+              "valor": "A",
+              "texto": "40 km/h"
+            },
+            {
+              "valor": "B",
+              "texto": "50 km/h"
+            },
+            {
+              "valor": "C",
+              "texto": "60 km/h"
+            },
+            {
+              "valor": "D",
+              "texto": "80 km/h"
+            }
+          ],
+          "respuesta_correcta": "C"
+        },
+        {
+          "numero": 7,
+          "enunciado": "Water boils at 100 °C at sea level.",
+          "tipo": "verdadero_falso",
+          "alternativas": [
+            {
+              "valor": "V",
+              "texto": "True"
+            },
+            {
+              "valor": "F",
+              "texto": "False"
+            }
+          ],
+          "respuesta_correcta": "V"
+        },
+        {
+          "numero": 8,
+          "enunciado": "Earth is the planet closest to the Sun.",
+          "tipo": "verdadero_falso",
+          "alternativas": [
+            {
+              "valor": "V",
+              "texto": "True"
+            },
+            {
+              "valor": "F",
+              "texto": "False"
+            }
+          ],
+          "respuesta_correcta": "F"
+        },
+        {
+          "numero": 9,
+          "enunciado": "Describe a recent situation in which you felt under pressure.",
+          "tipo": "desarrollo",
+          "alternativas": [],
+          "respuesta_correcta": null
+        },
+        {
+          "numero": 10,
+          "enunciado": "Match each country with its capital.",
+          "tipo": "emparejamiento",
+          "alternativas": [
+            {
+              "valor": 1,
+              "texto": "Italy"
+            },
+            {
+              "valor": 2,
+              "texto": "France"
+            },
+            {
+              "valor": 3,
+              "texto": "Spain"
+            },
+            {
+              "valor": "a",
+              "texto": "Madrid"
+            },
+            {
+              "valor": "b",
+              "texto": "Rome"
+            },
+            {
+              "valor": "c",
+              "texto": "Paris"
+            }
+          ],
+          "respuesta_correcta": "1-b; 2-c; 3-a"
+        }
+      ]
+    },
+    "error": null
+  }
+]

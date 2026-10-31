@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = ""
     MAX_FILE_SIZE_MB: int = 10
+    MAX_SHEETS: int = 10
 
     # Vertex AI. Las credenciales salen de ADC: archivo montado en local,
     # service account del servicio en Cloud Run.

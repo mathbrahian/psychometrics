@@ -24,7 +24,8 @@ La API queda en http://localhost:8080.
 | GET    | `/`       | Hola mundo               |
 | GET    | `/health` | Estado del servicio      |
 | GET    | `/docs`   | Documentación (Swagger)  |
-| POST   | `/v1/questionnaires/extract` | Recibe un cuestionario (`file`: PDF o .docx) y devuelve sus ítems en JSON |
+| POST   | `/v1/questionnaires/extract` | Recibe un cuestionario (`file`: PDF, .docx o .xlsx) y devuelve sus ítems en JSON. De un Excel solo lee la primera hoja. |
+| POST   | `/v1/questionnaires/extract-sheets` | Recibe un Excel (`file`: .xlsx) y procesa cada hoja como un cuestionario, en paralelo. Devuelve una lista con un resultado por hoja. |
 
 ## Variables de entorno
 
@@ -32,6 +33,7 @@ La API queda en http://localhost:8080.
 |----------|---------|----------------------------------------------------------------|
 | `PORT`   | `8080`  | Puerto en el que escucha la API. Cloud Run lo asigna solo.     |
 | `MAX_FILE_SIZE_MB` | `10` | Tamaño máximo del archivo subido. |
+| `MAX_SHEETS` | `10` | Máximo de hojas con contenido que procesa `/extract-sheets`. |
 | `GOOGLE_CLOUD_PROJECT` | vacío | Proyecto de GCP de Vertex AI. |
 | `GOOGLE_CLOUD_LOCATION` | `global` | Endpoint de Vertex AI. |
 | `GENAI_MODEL` | `gemini-3.8-flash` | Modelo de Gemini. |

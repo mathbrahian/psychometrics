@@ -1,4 +1,4 @@
-# Peticiones para probar extractor-vertex en local.
+# extractor-vertex: estado del servicio y errores. Ninguna de estas peticiones llega a Vertex AI.
 # Requiere la extensión REST Client de VS Code (humao.rest-client): clic en "Send Request" sobre cada una.
 # Levantar antes el servicio: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
@@ -6,17 +6,6 @@
 
 ### Estado del servicio
 GET {{baseUrl}}/health
-
-### Extraer cuestionario: caso 01 (.docx)
-POST {{baseUrl}}/v1/questionnaires/extract
-Content-Type: multipart/form-data; boundary=boundary
-
---boundary
-Content-Disposition: form-data; name="file"; filename="cuestionario.docx"
-Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-
-< ../examples/01-tipo-doc/cuestionario.docx
---boundary--
 
 ### Error 415: formato no soportado (.doc)
 POST {{baseUrl}}/v1/questionnaires/extract
@@ -44,4 +33,15 @@ esto no es un PDF
 POST {{baseUrl}}/v1/questionnaires/extract
 Content-Type: multipart/form-data; boundary=boundary
 
+--boundary--
+
+### Error 415: extract-sheets solo acepta .xlsx
+POST {{baseUrl}}/v1/questionnaires/extract-sheets
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ../examples/01-tipo-doc/cuestionario.docx
 --boundary--

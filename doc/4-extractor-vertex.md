@@ -202,7 +202,7 @@ Cada campo lleva una `description`. Además de documentar la API, servirá de gu
 - **`idioma` es cualquier código ISO 639-1 de dos letras:** la prueba exige al menos italiano, español e inglés, pero no se restringe a esos tres para no fallar con otros idiomas.
 - **`alternativas` es una lista vacía por defecto**, que es el caso de los ítems de desarrollo.
 
-Pendiente de definir en las reglas de negocio: cómo representar los ítems de `emparejamiento`, que el ejemplo de la prueba no muestra.
+La representación de los ítems de `emparejamiento`, que el ejemplo de la prueba no muestra, se define en la parte 4.
 
 ### Tests (`tests/test_schemas.py`)
 
@@ -244,10 +244,9 @@ El esquema se genera del mismo modelo de Pydantic que usa la API, con los nombre
   - selección múltiple con letras;
   - verdadero/falso con `V` y `F`;
   - desarrollo sin alternativas;
-  - emparejamiento con un ítem por cada elemento de la columna izquierda y la columna derecha como alternativas.
+  - emparejamiento como un solo ítem (ver parte 4).
 - **Respuesta correcta:** solo si el documento la indica. El modelo nunca debe resolver los ítems por su cuenta.
 
-Con esto queda definido el supuesto de **emparejamiento** que estaba pendiente en la parte 1.
 
 ### Parámetros del modelo
 
@@ -283,7 +282,7 @@ Se valida la respuesta en lugar de confiar en el modelo: aunque se le pida un es
 
 - **PDF:** se envía directamente al modelo (`Part.from_bytes`). Gemini lee el PDF completo, incluido su diseño, y también los PDF escaneados.
 - **`.docx`:** Gemini no lo lee directamente, así que se convierte a texto (ver parte 3).
-- **`.xlsx`:** pendiente; por ahora devuelve `formato_invalido`.
+- **`.xlsx`:** se convierte a texto (ver parte 4).
 
 ### Tests (`tests/test_questionnaire_extractor.py`)
 
@@ -353,6 +352,8 @@ Cada caso vive en su carpeta, con el cuestionario de entrada y el `resultado.jso
 | Caso                  | Entrada | Resultado |
 |-----------------------|---------|-----------|
 | `01-tipo-doc` | `.docx` | 3 ítems correctos: Likert con valores 0 a 3, selección múltiple con respuesta correcta `C` y desarrollo sin alternativas. |
+| `02-tipo-xlsx` | `.xlsx` | Ver parte 4. |
+| `03-tipo-pdf` | `.pdf` | Ver parte 5. |
 
 Primera llamada real: HTTP 200 en unos 12 segundos. Gemini aceptó sin cambios el esquema generado por Pydantic, que incluye `$defs` y `anyOf`.
 
@@ -368,6 +369,135 @@ Primera llamada real: HTTP 200 en unos 12 segundos. Gemini aceptó sin cambios e
 - `test_schemas.py`: cada `examples/*/resultado.json` cumple el esquema.
 
 Los datos de prueba compartidos (`EXAMPLES_DIR`, `DATA_DIR`) y la configuración de entorno de los tests están en `tests/conftest.py`.
+
+## Parte 4: Excel y emparejamiento
+
+### Lectura de `.xlsx` (`app/document_reader.py`)
+
+Con `openpyxl` se lee cada hoja fila por fila. Cada fila es una línea, sus celdas se separan con ` | `, y se omiten las filas vacías y las celdas vacías al final de cada fila. Se leen los valores calculados de las celdas, no sus fórmulas. Igual que el `.docx`, el texto se envía al modelo como `Part.from_text`.
+
+En `/extract`, de un Excel **solo se lee la primera hoja**, porque ese endpoint devuelve un cuestionario por archivo. Las demás hojas pueden tener otros cuestionarios, instrucciones o resultados esperados que no deben llegar al modelo.
+
+### Regla de emparejamiento
+
+El primer criterio separaba cada elemento de la columna izquierda en un ítem distinto. Con el caso `02-tipo-xlsx` se vieron dos problemas:
+
+- El documento numera el emparejamiento como **un solo ítem**. Separarlo cambiaba `total_items` (12 en lugar de 10) y la numeración.
+- Se perdía el enunciado real: los ítems quedaban como `"Italia"` y desaparecía la instrucción *"Relacione cada país con su capital"*.
+
+Regla final, en `SYSTEM_INSTRUCTION`:
+
+- El conjunto de elementos a relacionar es **un solo ítem**, con la instrucción como `enunciado`.
+- `alternativas` incluye primero la columna izquierda, con `valor` numérico (1, 2, 3...), y después la derecha, con `valor` en letras minúsculas (a, b, c...).
+- `respuesta_correcta`, si el documento la indica, es un texto con los pares: `"1-b; 2-c; 3-a"`.
+
+```json
+{
+  "numero": 10,
+  "enunciado": "Relacione cada país con su capital.",
+  "tipo": "emparejamiento",
+  "alternativas": [
+    { "valor": 1, "texto": "Italia" }, { "valor": 2, "texto": "Francia" }, { "valor": 3, "texto": "España" },
+    { "valor": "a", "texto": "Madrid" }, { "valor": "b", "texto": "Roma" }, { "valor": "c", "texto": "París" }
+  ],
+  "respuesta_correcta": "1-b; 2-c; 3-a"
+}
+```
+
+**Likert:** se mantiene la regla de empezar en 0, salvo que el documento indique otros valores. Una escala de 5 puntos sin valores indicados queda de 0 a 4, coherente con el ejemplo de la prueba, que usa 0 a 3.
+
+### Endpoint especializado: `POST /v1/questionnaires/extract-sheets`
+
+Un plus sobre lo que pide la prueba: procesa **todas las hojas** de un Excel, cada una como un cuestionario independiente.
+
+**Se hizo un endpoint nuevo en lugar de cambiar `/extract`**, por estas razones:
+
+- `/extract` cumple el contrato de la prueba: siempre devuelve **un** cuestionario. Si a veces devolviera un objeto y a veces una lista, quien lo consume tendría que adivinar la forma de la respuesta.
+- Cada endpoint tiene un tipo de respuesta fijo, bien documentado en `/docs` y fácil de testear.
+
+**Funcionamiento:**
+
+- **Solo acepta `.xlsx`.** Otro formato devuelve `415 formato_invalido`.
+- **Paralelo:** cada hoja con contenido se envía a Vertex AI en su propia llamada, todas al mismo tiempo con `asyncio.gather`. Un Excel de 3 hojas tarda prácticamente lo mismo que uno de una hoja. No contradice la decisión de una sola llamada por documento, porque no se parte un cuestionario: cada hoja **es** un cuestionario completo.
+- **Errores aislados:** el error de una hoja no afecta a las demás. Cada resultado trae el cuestionario o el error de esa hoja.
+- **Las hojas vacías se omiten** sin llamar al modelo. Si todas están vacías, devuelve `422 sin_items`.
+- **Límite de hojas:** `MAX_SHEETS`, 10 por defecto. Cada hoja es una llamada con costo, así que un Excel con más hojas con contenido devuelve `413 demasiadas_hojas` sin llamar al modelo.
+
+**Respuesta**, una lista de `SheetResult`:
+
+```json
+[
+  { "hoja": "Cuestionario_ES", "cuestionario": { "titulo": "...", "idioma": "es", "total_items": 10, "items": [...] }, "error": null },
+  { "hoja": "Cuestionario_IT", "cuestionario": { "titulo": "...", "idioma": "it", "total_items": 10, "items": [...] }, "error": null },
+  { "hoja": "Hoja rota",       "cuestionario": null, "error": { "error": "respuesta_invalida", "detalle": "..." } }
+]
+```
+
+En el código, `extract` y `extract_sheets` comparten `_extract_part`, que hace la llamada al modelo y valida la respuesta, así que las reglas son las mismas en los dos endpoints.
+
+### Caso de prueba `02-tipo-xlsx`
+
+El mismo cuestionario de 10 ítems en tres hojas (español, italiano e inglés), con los 5 tipos de ítem.
+
+| Archivo               | Endpoint          | Resultado con Vertex AI real                                         |
+|-----------------------|-------------------|----------------------------------------------------------------------|
+| `resultado.json`      | `/extract`        | Primera hoja: 10 ítems, idioma `es`, HTTP 200 en unos 18 s.          |
+| `resultado-hojas.json`| `/extract-sheets` | Las 3 hojas, idiomas `es`, `it` y `en`, 10 ítems cada una, HTTP 200 en unos 19 s. |
+
+En las tres hojas salieron correctas las respuestas de selección múltiple, verdadero/falso y emparejamiento (`"1-b; 2-c; 3-a"`).
+
+### Tests
+
+- `test_document_reader.py`: de un Excel, `/extract` solo lee la primera hoja y se omiten las celdas vacías al final de cada fila.
+- `test_extract_sheets.py`:
+  - se leen todas las hojas del ejemplo y cada una va en su propia llamada;
+  - el error de una hoja no afecta a las demás;
+  - las hojas vacías se omiten;
+  - un Excel sin contenido o con demasiadas hojas se rechaza sin llamar al modelo;
+  - el endpoint devuelve la lista con los nombres en español y rechaza archivos que no son `.xlsx`.
+
+  Los Excel de prueba se crean en memoria con `openpyxl`.
+- `test_schemas.py`: también valida cada `examples/*/resultado-hojas.json`.
+
+## Parte 5: PDF
+
+### Lectura
+
+El PDF no se convierte a texto: se envía tal cual al modelo (`Part.from_bytes` con `application/pdf`). Gemini lee el documento completo, incluido su diseño, lo que permite interpretar elementos visuales que se perderían al extraer solo el texto:
+
+- alternativas marcadas con `(X)` o con color;
+- columnas, como en los emparejamientos;
+- tablas, como una clave de respuestas.
+
+También funciona con PDF escaneados, sin texto seleccionable.
+
+### Caso de prueba `03-tipo-pdf`
+
+Un PDF de 3 páginas con 12 ítems de los 5 tipos. Es el caso más exigente hasta ahora:
+
+- **Ítems agrupados en secciones** ("Parte I. Hábitos de trabajo", "Parte II. Razonamiento..."). Los títulos de sección no son ítems.
+- **Respuestas marcadas visualmente**, con `(X)` y en verde.
+- **Clave de respuestas en la última página**, separada de las preguntas.
+- **Pies de página** repetidos en cada página.
+- **Dos emparejamientos** en columnas, con la respuesta marcada al lado de cada par.
+
+**Resultado con Vertex AI real** (HTTP 200 en unos 18 s): los 12 ítems coinciden con la clave de respuestas.
+
+| Ítems  | Tipo                 | Respuesta correcta                       |
+|--------|----------------------|------------------------------------------|
+| 1 a 3  | `escala_likert`      | `null` (escalas de 4 y 5 puntos, 0 a 3 y 0 a 4) |
+| 4 a 7  | `seleccion_multiple` | `B`, `C`, `B`, `B`                       |
+| 8 y 9  | `verdadero_falso`    | `V`, `F`                                 |
+| 10     | `desarrollo`         | `null`                                   |
+| 11 y 12| `emparejamiento`     | `1-c; 2-b; 3-a` y `1-c; 2-a; 3-b`        |
+
+No hizo falta cambiar el prompt: las reglas definidas con los casos anteriores sirvieron sin ajustes para un formato nuevo.
+
+### Tests
+
+- `test_api.py`: el endpoint acepta el PDF de ejemplo y lo pasa al extractor como `pdf`.
+- `test_questionnaire_extractor.py` ya verificaba que el PDF se envía directo al modelo, sin convertirlo.
+- `test_schemas.py` valida `examples/03-tipo-pdf/resultado.json`.
 
 ## Despliegue en Cloud Run
 

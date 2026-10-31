@@ -1,0 +1,226 @@
+{
+  "titulo": "Cuestionario de ejemplo – Bienestar y razonamiento",
+  "idioma": "es",
+  "total_items": 10,
+  "items": [
+    {
+      "numero": 1,
+      "enunciado": "Me preocupo en exceso por cosas de poca importancia.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Nunca"
+        },
+        {
+          "valor": 1,
+          "texto": "A veces"
+        },
+        {
+          "valor": 2,
+          "texto": "Frecuentemente"
+        },
+        {
+          "valor": 3,
+          "texto": "Siempre"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 2,
+      "enunciado": "Me cuesta concentrarme cuando hay ruido a mi alrededor.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Nunca"
+        },
+        {
+          "valor": 1,
+          "texto": "A veces"
+        },
+        {
+          "valor": 2,
+          "texto": "Frecuentemente"
+        },
+        {
+          "valor": 3,
+          "texto": "Siempre"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 3,
+      "enunciado": "Disfruto trabajando en equipo.",
+      "tipo": "escala_likert",
+      "alternativas": [
+        {
+          "valor": 0,
+          "texto": "Totalmente en desacuerdo"
+        },
+        {
+          "valor": 1,
+          "texto": "En desacuerdo"
+        },
+        {
+          "valor": 2,
+          "texto": "Neutral"
+        },
+        {
+          "valor": 3,
+          "texto": "De acuerdo"
+        },
+        {
+          "valor": 4,
+          "texto": "Totalmente de acuerdo"
+        }
+      ],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 4,
+      "enunciado": "¿Qué número completa la serie: 3, 6, 12, 24, ...?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "36"
+        },
+        {
+          "valor": "B",
+          "texto": "42"
+        },
+        {
+          "valor": "C",
+          "texto": "48"
+        },
+        {
+          "valor": "D",
+          "texto": "30"
+        }
+      ],
+      "respuesta_correcta": "C"
+    },
+    {
+      "numero": 5,
+      "enunciado": "¿Cuál es la capital de Colombia?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "Medellín"
+        },
+        {
+          "valor": "B",
+          "texto": "Bogotá"
+        },
+        {
+          "valor": "C",
+          "texto": "Cali"
+        },
+        {
+          "valor": "D",
+          "texto": "Cartagena"
+        }
+      ],
+      "respuesta_correcta": "B"
+    },
+    {
+      "numero": 6,
+      "enunciado": "Si un tren recorre 120 km en 2 horas, ¿cuál es su velocidad media?",
+      "tipo": "seleccion_multiple",
+      "alternativas": [
+        {
+          "valor": "A",
+          "texto": "40 km/h"
+        },
+        {
+          "valor": "B",
+          "texto": "50 km/h"
+        },
+        {
+          "valor": "C",
+          "texto": "60 km/h"
+        },
+        {
+          "valor": "D",
+          "texto": "80 km/h"
+        }
+      ],
+      "respuesta_correcta": "C"
+    },
+    {
+      "numero": 7,
+      "enunciado": "El agua hierve a 100 °C al nivel del mar.",
+      "tipo": "verdadero_falso",
+      "alternativas": [
+        {
+          "valor": "V",
+          "texto": "Verdadero"
+        },
+        {
+          "valor": "F",
+          "texto": "Falso"
+        }
+      ],
+      "respuesta_correcta": "V"
+    },
+    {
+      "numero": 8,
+      "enunciado": "La Tierra es el planeta más cercano al Sol.",
+      "tipo": "verdadero_falso",
+      "alternativas": [
+        {
+          "valor": "V",
+          "texto": "Verdadero"
+        },
+        {
+          "valor": "F",
+          "texto": "Falso"
+        }
+      ],
+      "respuesta_correcta": "F"
+    },
+    {
+      "numero": 9,
+      "enunciado": "Describa una situación reciente en la que se sintió bajo presión.",
+      "tipo": "desarrollo",
+      "alternativas": [],
+      "respuesta_correcta": null
+    },
+    {
+      "numero": 10,
+      "enunciado": "Relacione cada país con su capital.",
+      "tipo": "emparejamiento",
+      "alternativas": [
+        {
+          "valor": 1,
+          "texto": "Italia"
+        },
+        {
+          "valor": 2,
+          "texto": "Francia"
+        },
+        {
+          "valor": 3,
+          "texto": "España"
+        },
+        {
+          "valor": "a",
+          "texto": "Madrid"
+        },
+        {
+          "valor": "b",
+          "texto": "Roma"
+        },
+        {
+          "valor": "c",
+          "texto": "París"
+        }
+      ],
+      "respuesta_correcta": "1-b; 2-c; 3-a"
+    }
+  ]
+}

@@ -94,3 +94,21 @@ def test_requires_file(fake_extractor):
 
     assert response.status_code == 422
     assert fake_extractor.documents == []
+
+
+def test_accepts_xlsx(fake_extractor):
+    content = (EXAMPLES_DIR / "02-tipo-xlsx" / "cuestionario.xlsx").read_bytes()
+
+    response = upload("cuestionario.xlsx", content)
+
+    assert response.status_code == 200
+    assert fake_extractor.documents[0].format.value == "xlsx"
+
+
+def test_accepts_pdf(fake_extractor):
+    content = (EXAMPLES_DIR / "03-tipo-pdf" / "cuestionario.pdf").read_bytes()
+
+    response = upload("cuestionario.pdf", content)
+
+    assert response.status_code == 200
+    assert fake_extractor.documents[0].format.value == "pdf"
