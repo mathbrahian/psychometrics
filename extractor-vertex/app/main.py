@@ -1,15 +1,13 @@
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="extractor-vertex")
+from app.config import settings
 
-cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+app = FastAPI(title="extractor-vertex")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=settings.cors_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

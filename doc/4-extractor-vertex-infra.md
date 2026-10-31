@@ -88,7 +88,8 @@ cp .env.example .env   # y completar GCP_PROJECT_ID
 | Variable         | Uso                                                       |
 |------------------|-----------------------------------------------------------|
 | `GCP_PROJECT_ID` | Proyecto de GCP donde corre Vertex AI.                    |
-| `GCP_REGION`     | Región de Vertex AI (`us-central1`).                      |
+| `GCP_REGION`     | Región de Cloud Run y Artifact Registry (`us-central1`).  |
+| `GCP_VERTEX_LOCATION` | Ubicación de Vertex AI (`global`). Los modelos Gemini 3.x se sirven desde el endpoint global. |
 | `GCP_ADC_PATH`   | Ruta del archivo ADC en la máquina local.                 |
 
 El compose pasa al contenedor `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` y `GOOGLE_APPLICATION_CREDENTIALS`, y monta el archivo ADC en `/secrets/adc.json` en solo lectura. Si el archivo no existe, el compose falla en lugar de crear una carpeta vacía (`create_host_path: false`).
@@ -113,7 +114,7 @@ gcloud run services update extractor-vertex \
 
 # 4. Proyecto y región de Vertex AI como variables del servicio (Cloud Run no las define solo)
 gcloud run services update extractor-vertex \
-  --update-env-vars=GOOGLE_CLOUD_PROJECT=<PROJECT_ID>,GOOGLE_CLOUD_LOCATION=us-central1
+  --update-env-vars=GOOGLE_CLOUD_PROJECT=<PROJECT_ID>,GOOGLE_CLOUD_LOCATION=global
 ```
 
 Se usa una service account propia en lugar de la de Compute por defecto, que tiene permisos de más.

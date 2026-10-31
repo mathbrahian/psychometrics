@@ -77,3 +77,88 @@ Pendiente de definir en las reglas de negocio: cómo representar los ítems de `
 - Los modelos también aceptan los nombres en inglés y los serializan en español.
 - Un ítem de desarrollo no tiene alternativas por defecto.
 - Se rechazan un tipo de ítem desconocido, un número de ítem menor a 1, un idioma que no sea ISO 639-1 y un formato de documento no soportado.
+
+## Parte 2: extractor con Vertex AI
+
+`app/questionnaire_extractor.py` contiene la clase `QuestionnaireExtractor`, que envía el documento a Gemini en Vertex AI y devuelve un `Questionnaire` validado.
+
+### SDK y modelo
+
+- **SDK:** `google-genai` (`genai.Client(vertexai=True)`), el SDK actual de Google. El antiguo `vertexai.generative_models` está obsoleto.
+- **Modelo:** `gemini-3.8-flash`, configurable con `GENAI_MODEL`. Se elige Flash por su equilibrio entre precio y calidad para salida estructurada.
+- **Ubicación:** `global`, porque los modelos Gemini 3.x se sirven desde el endpoint global de Vertex AI. Cloud Run sigue en `us-central1`.
+- **Llamada asíncrona** (`client.aio`): mientras espera a Vertex AI, la instancia de Cloud Run puede atender otras peticiones.
+- El cliente se crea **una sola vez** al instanciar el extractor, no en cada petición.
+
+### Salida estructurada
+
+La configuración de la llamada fuerza al modelo a responder con el esquema de la parte 1:
+
+```python
+response_mime_type="application/json",
+response_json_schema=Questionnaire.model_json_schema(),
+```
+
+El esquema se genera del mismo modelo de Pydantic que usa la API, con los nombres en español y las `description` de cada campo, que le sirven de guía al modelo. Así el esquema se define una sola vez.
+
+### Instrucciones del sistema
+
+`SYSTEM_INSTRUCTION` define las reglas de extracción:
+
+- **Generales:** mantener el orden del documento, numerar desde 1, no inventar ítems y no tratar como ítems las instrucciones o los títulos de sección.
+- **Por tipo de ítem:**
+  - Likert con valores numéricos desde 0;
+  - selección múltiple con letras;
+  - verdadero/falso con `V` y `F`;
+  - desarrollo sin alternativas;
+  - emparejamiento con un ítem por cada elemento de la columna izquierda y la columna derecha como alternativas.
+- **Respuesta correcta:** solo si el documento la indica. El modelo nunca debe resolver los ítems por su cuenta.
+
+Con esto queda definido el supuesto de **emparejamiento** que estaba pendiente en la parte 1.
+
+### Parámetros del modelo
+
+Se configuran con variables de entorno (`app/config.py`, con `pydantic-settings`), así se ajustan sin tocar código:
+
+| Variable                | Default            | Motivo                                                        |
+|-------------------------|--------------------|---------------------------------------------------------------|
+| `GENAI_MODEL`           | `gemini-3.8-flash` | Modelo de Gemini.                                             |
+| `GOOGLE_CLOUD_LOCATION` | `global`           | Endpoint de Vertex AI.                                        |
+| `MAX_OUTPUT_TOKENS`     | `32768`            | Margen para el JSON de cuestionarios largos.                  |
+| `TEMPERATURE`           | `0.0`              | Respuestas deterministas: el mismo documento da el mismo resultado. |
+| `TOP_P`                 | `0.95`             |                                                               |
+| `SEED`                  | `0`                | Reproducibilidad, junto con la temperatura en 0.              |
+
+### Filtros de seguridad
+
+Los `safety_settings` se desactivan (`OFF`). Los cuestionarios psicológicos tratan temas sensibles, como ansiedad, autolesiones o pensamientos negativos, y los filtros podrían bloquear la respuesta de un cuestionario legítimo.
+
+### Errores
+
+Las excepciones están en `app/exceptions.py`. Cada una tiene un `code`, que será el campo `error` de la respuesta de la API:
+
+| Excepción                    | `code`                       | Cuándo                                                   |
+|------------------------------|------------------------------|----------------------------------------------------------|
+| `UnsupportedFormatError`     | `formato_invalido`           | Formato no soportado.                                    |
+| `TruncatedResponseError`     | `documento_demasiado_grande` | El modelo llegó a `MAX_OUTPUT_TOKENS` y el JSON quedó cortado (`finish_reason = MAX_TOKENS`). |
+| `InvalidModelResponseError`  | `respuesta_invalida`         | Respuesta vacía, bloqueada o que no cumple el esquema.   |
+| `NoItemsFoundError`          | `sin_items`                  | El documento no tiene ítems.                             |
+
+Se valida la respuesta en lugar de confiar en el modelo: aunque se le pida un esquema, la salida se vuelve a validar con Pydantic.
+
+### Formatos
+
+- **PDF:** se envía directamente al modelo (`Part.from_bytes`). Gemini lee el PDF completo, incluido su diseño, y también los PDF escaneados.
+- **`.docx` y `.xlsx`:** Gemini no los lee directamente. Por ahora devuelven `formato_invalido`; se convertirán a texto en la siguiente parte.
+
+### Tests (`tests/test_questionnaire_extractor.py`)
+
+Vertex AI se simula con un cliente falso, así que los tests no tienen costo ni dependen de la red:
+
+- Una respuesta válida del modelo se convierte en el `Questionnaire` esperado.
+- Se hace **una sola llamada**, con el PDF como contenido.
+- La configuración pide JSON con el esquema de `Questionnaire` y los filtros de seguridad desactivados.
+- Se lanza el error correcto cuando la respuesta está cortada, vacía, no cumple el esquema o no tiene ítems.
+- Un `.docx` se rechaza sin llamar al modelo.
+
+Los tests asíncronos usan `pytest-asyncio`, en modo `auto` (`pytest.ini`).
