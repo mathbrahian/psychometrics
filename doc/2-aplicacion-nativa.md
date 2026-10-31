@@ -26,6 +26,39 @@ Fuera de alcance: la extracción de cuestionarios, Vertex AI, el backend y la ba
 - **Credenciales del pipeline:** GitHub Actions se autentica en GCP sin guardar llaves en el repositorio.
 - **Imágenes:** se publican en Artifact Registry, en la misma región que Cloud Run.
 
+## Lo que se ha hecho
+
+### Servicios dockerizados
+
+- **extractor-vertex:** FastAPI con `GET /` y `GET /health`, sobre `python:3.12-slim`. Escucha en `$PORT` (8080 por defecto).
+- **frontend:** React con Vite. La imagen tiene dos etapas: una compila con `npm run build` y otra sirve los archivos con `serve` en `$PORT`. No se usa nginx porque Cloud Run ya se encarga del tráfico HTTP.
+
+### Comunicación entre servicios
+
+- La llamada al extractor la hace el navegador, no el contenedor. Por eso la URL es la pública: `localhost:8080` en local y la de Cloud Run en la nube.
+- **Configuración en tiempo de ejecución:** al arrancar, el frontend genera `config.js` con la variable `EXTRACTOR_VERTEX_URL`. Así la misma imagen sirve para cualquier entorno, sin recompilar.
+- **CORS:** el extractor solo permite los orígenes definidos en `CORS_ORIGINS`.
+
+### Docker Compose en dos modos
+
+- **Producción** (`docker-compose.yml`): construye las mismas imágenes que irán a Cloud Run. Sirve para validar antes de cada push.
+- **Desarrollo** (`docker-compose.dev.yml`, encima del anterior): monta el código como volumen, con `uvicorn --reload` en el extractor y el servidor de Vite en el frontend, para tener recarga en caliente. En este modo Vite sirve `config.js` igual que en producción.
+
+### Variables de entorno
+
+| Servicio           | Variable               | Local                   | Cloud Run                     |
+|--------------------|------------------------|-------------------------|-------------------------------|
+| `extractor-vertex` | `CORS_ORIGINS`         | `http://localhost:3000` | URL de Cloud Run del frontend |
+| `frontend`         | `EXTRACTOR_VERTEX_URL` | `http://localhost:8080` | URL de Cloud Run del extractor |
+| ambos              | `PORT`                 | `8080`                  | La asigna Cloud Run           |
+
+### Pendiente
+
+- Crear la cuenta y el proyecto en GCP.
+- Desplegar en Cloud Run.
+- Pipeline de GitHub Actions.
+- Tests con Pytest.
+
 ## Resultado esperado
 
 Con un `docker compose up` la aplicación funciona en local, y con un push a GitHub queda desplegada en Cloud Run con la misma configuración.

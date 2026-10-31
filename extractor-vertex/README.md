@@ -30,6 +30,7 @@ La API queda en http://localhost:8080.
 | Variable | Default | Descripción                                                    |
 |----------|---------|----------------------------------------------------------------|
 | `PORT`   | `8080`  | Puerto en el que escucha la API. Cloud Run lo asigna solo.     |
+| `CORS_ORIGINS` | vacío | Orígenes permitidos separados por coma, por ejemplo `http://localhost:3000`. Vacío no permite ninguno. |
 
 Para usar otro puerto en local:
 

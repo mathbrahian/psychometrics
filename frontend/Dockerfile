@@ -8,9 +8,17 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM node:24-alpine
 
-ENV PORT=8080
+WORKDIR /app
 
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/dist ./dist
+COPY docker-entrypoint.sh ./
+
+ENV PORT=8080 \
+    EXTRACTOR_VERTEX_URL=http://localhost:8080
+
+CMD ["sh", "docker-entrypoint.sh"]

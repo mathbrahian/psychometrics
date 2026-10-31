@@ -20,10 +20,11 @@ La app queda en http://localhost:3000.
 ## Cómo funciona la imagen
 
 - **Etapa 1 (`node`):** instala dependencias y compila la app con `npm run build`.
-- **Etapa 2 (`nginx`):** sirve los archivos estáticos compilados.
+- **Etapa 2 (`node`):** al arrancar genera `config.js` con las variables de entorno y sirve los archivos compilados con `serve`.
 
 ## Variables de entorno
 
 | Variable | Default | Descripción                                                    |
 |----------|---------|----------------------------------------------------------------|
-| `PORT`   | `8080`  | Puerto en el que escucha nginx. Cloud Run lo asigna solo.      |
+| `PORT`   | `8080`  | Puerto en el que escucha el servidor. Cloud Run lo asigna solo. |
+| `EXTRACTOR_VERTEX_URL` | `http://localhost:8080` | URL pública de extractor-vertex. La usa el navegador, no el contenedor. |
