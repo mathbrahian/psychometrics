@@ -2,23 +2,25 @@ import asyncio
 import logging
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import ValidationError
 
-from app.config import settings
-from app.document_reader import docx_to_text, xlsx_sheets_to_text, xlsx_to_text
-from app.exceptions import (
-    InvalidModelResponseError,
+from questionnaire_core.document_reader import docx_to_text, xlsx_sheets_to_text, xlsx_to_text
+from questionnaire_core.exceptions import (
     ExtractionError,
+    InvalidModelResponseError,
+    ModelServiceError,
     NoItemsFoundError,
+    RateLimitError,
     TooManySheetsError,
     TruncatedResponseError,
     UnsupportedFormatError,
 )
-from app.models.input_schemas import MIME_TYPES, DocumentFormat, InputDocument
-from app.models.output_schemas import ErrorResponse, Questionnaire, SheetResult
+from questionnaire_core.models.input_schemas import MIME_TYPES, DocumentFormat, InputDocument
+from questionnaire_core.models.output_schemas import ErrorResponse, Questionnaire, SheetResult
+from questionnaire_core.settings import ExtractorSettings
 
-logger = logging.getLogger("extractor-vertex")
+logger = logging.getLogger("questionnaire-core")
 
 SYSTEM_INSTRUCTION = """
 Eres un sistema que digitaliza cuestionarios y pruebas de evaluación psicométrica.
@@ -69,14 +71,14 @@ SAFETY_SETTINGS = [
 
 
 class QuestionnaireExtractor:
-    """Extrae los ítems de un cuestionario con Gemini en Vertex AI, en una sola llamada."""
+    """Extrae los ítems de un cuestionario con Gemini, en una sola llamada por documento.
 
-    def __init__(self, client: genai.Client | None = None):
-        self.client = client or genai.Client(
-            vertexai=True,
-            project=settings.GOOGLE_CLOUD_PROJECT,
-            location=settings.GOOGLE_CLOUD_LOCATION,
-        )
+    No depende del proveedor: recibe un `genai.Client` ya creado, con Vertex AI o con la Gemini API.
+    """
+
+    def __init__(self, client: genai.Client, settings: ExtractorSettings):
+        self.client = client
+        self.settings = settings
         self.config = types.GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
             response_mime_type="application/json",
@@ -119,8 +121,8 @@ class QuestionnaireExtractor:
         if not sheets:
             msg = "El Excel no tiene hojas con contenido."
             raise NoItemsFoundError(msg)
-        if len(sheets) > settings.MAX_SHEETS:
-            msg = f"El Excel tiene {len(sheets)} hojas con contenido; el máximo es {settings.MAX_SHEETS}."
+        if len(sheets) > self.settings.MAX_SHEETS:
+            msg = f"El Excel tiene {len(sheets)} hojas con contenido; el máximo es {self.settings.MAX_SHEETS}."
             raise TooManySheetsError(msg)
 
         return list(await asyncio.gather(*(self._extract_sheet(name, text) for name, text in sheets)))
@@ -137,11 +139,22 @@ class QuestionnaireExtractor:
             return SheetResult(sheet_name=name, error=ErrorResponse(error=ExtractionError.code, detail=detail))
 
     async def _extract_part(self, part: types.Part) -> Questionnaire:
-        response = await self.client.aio.models.generate_content(
-            model=settings.GENAI_MODEL,
-            contents=[part],
-            config=self.config,
-        )
+        try:
+            response = await self.client.aio.models.generate_content(
+                model=self.settings.GENAI_MODEL,
+                contents=[part],
+                config=self.config,
+            )
+        except errors.APIError as error:
+            if error.code == 429:
+                msg = "Se alcanzó el límite de uso del modelo. Intente de nuevo en unos minutos."
+                raise RateLimitError(msg) from error
+            if error.code == 402:
+                msg = "La cuenta del proveedor del modelo no tiene crédito disponible."
+                raise RateLimitError(msg) from error
+            logger.error("Error del servicio del modelo: %s", error)
+            msg = "El servicio del modelo no respondió correctamente."
+            raise ModelServiceError(msg) from error
 
         finish_reason = response.candidates[0].finish_reason if response.candidates else None
         if finish_reason == types.FinishReason.MAX_TOKENS:

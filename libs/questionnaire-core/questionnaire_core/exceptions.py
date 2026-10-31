@@ -38,3 +38,18 @@ class InvalidModelResponseError(ExtractionError):
 class TooManySheetsError(ExtractionError):
     code = "demasiadas_hojas"
     status_code = 413
+
+
+class RateLimitError(ExtractionError):
+    code = "limite_de_uso"
+    status_code = 429
+
+
+class ModelServiceError(ExtractionError):
+    code = "error_modelo"
+    status_code = 502
+
+
+class ServiceNotConfiguredError(ExtractionError):
+    code = "servicio_no_configurado"
+    status_code = 503

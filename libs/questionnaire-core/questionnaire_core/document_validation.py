@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from app.exceptions import EmptyFileError, FileTooLargeError, UnsupportedFormatError
-from app.models.input_schemas import DocumentFormat, InputDocument
+from questionnaire_core.exceptions import EmptyFileError, FileTooLargeError, UnsupportedFormatError
+from questionnaire_core.models.input_schemas import DocumentFormat, InputDocument
 
 # Firma de los primeros bytes de cada formato. .docx y .xlsx son archivos ZIP.
 PDF_SIGNATURE = b"%PDF"

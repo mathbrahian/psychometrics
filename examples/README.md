@@ -1,6 +1,6 @@
 # Ejemplos
 
-Cada carpeta es un caso de prueba con el cuestionario de entrada y el JSON que devolvió `extractor-vertex`. Todos los cuestionarios son inventados.
+Cada carpeta es un caso de prueba con el cuestionario de entrada y el JSON que devolvieron los extractores: `resultado.json` (`extractor-vertex`, Vertex AI) y `resultado-gemini.json` (`extractor-gemini`, Gemini API). Todos los cuestionarios son inventados.
 
 | Caso | Entrada | Qué prueba |
 |------|---------|------------|

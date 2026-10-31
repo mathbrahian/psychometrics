@@ -1,0 +1,28 @@
+[project]
+name = "questionnaire-core"
+version = "0.1.0"
+description = "Lógica compartida de los extractores de cuestionarios: modelos, validación, lectura de archivos, prompt y API."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "pydantic==2.14.2",
+    "pydantic-settings==2.16.2",
+    "python-multipart==0.0.32",
+    "google-genai==2.34.0",
+    "python-docx==1.2.0",
+    "openpyxl==3.1.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "httpx==0.28.1",
+    "pytest-asyncio==1.2.0",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["questionnaire_core*"]

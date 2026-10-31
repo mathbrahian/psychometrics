@@ -3,18 +3,20 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from google.genai import types
+from google.genai import errors, types
 
-from app.exceptions import (
+from questionnaire_core.exceptions import (
     InvalidModelResponseError,
+    ModelServiceError,
     NoItemsFoundError,
+    RateLimitError,
     TruncatedResponseError,
     UnsupportedFormatError,
 )
-from app.models.input_schemas import InputDocument
-from app.models.output_schemas import Questionnaire
-from app.questionnaire_extractor import QuestionnaireExtractor
-from tests.conftest import EXAMPLES_DIR
+from questionnaire_core.models.input_schemas import InputDocument
+from questionnaire_core.models.output_schemas import Questionnaire
+from questionnaire_core.extractor import QuestionnaireExtractor
+from tests.conftest import EXAMPLES_DIR, TEST_SETTINGS
 
 SPEC_EXAMPLE = (Path(__file__).parent / "data" / "spec_example.json").read_text(encoding="utf-8")
 PDF_DOCUMENT = InputDocument(filename="test.pdf", format="pdf", content=b"%PDF-1.4 fake")
@@ -35,7 +37,7 @@ class FakeModels:
 def make_extractor(text: str | None, finish_reason=types.FinishReason.STOP):
     models = FakeModels(text, finish_reason)
     client = SimpleNamespace(aio=SimpleNamespace(models=models))
-    return QuestionnaireExtractor(client=client), models
+    return QuestionnaireExtractor(client=client, settings=TEST_SETTINGS), models
 
 
 async def test_extracts_questionnaire_from_model_response():
@@ -113,3 +115,23 @@ async def test_sends_xlsx_as_text():
 
     [part] = models.calls[0]["contents"]
     assert part.text.startswith("Cuestionario de ejemplo")
+
+
+class FailingModels:
+    def __init__(self, error):
+        self.error = error
+
+    async def generate_content(self, **kwargs):
+        raise self.error
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [(429, RateLimitError), (402, RateLimitError), (500, ModelServiceError), (403, ModelServiceError)],
+)
+async def test_maps_model_service_errors(code, expected):
+    client = SimpleNamespace(aio=SimpleNamespace(models=FailingModels(errors.APIError(code, {}))))
+    extractor = QuestionnaireExtractor(client=client, settings=TEST_SETTINGS)
+
+    with pytest.raises(expected):
+        await extractor.extract(PDF_DOCUMENT)

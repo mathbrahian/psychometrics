@@ -10,18 +10,21 @@ permissions:
   id-token: write # necesario para Workload Identity Federation
 
 jobs:
-  test-extractor-vertex:
+  test-python:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: extractor-vertex
+    strategy:
+      matrix:
+        package: [libs/questionnaire-core, extractor-vertex, extractor-gemini]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      # La librería se instala desde el mismo commit: los cambios de la librería y de los servicios se prueban juntos.
+      - run: pip install -e "libs/questionnaire-core[dev]"
+      - run: if [ -f ${{ matrix.package }}/requirements.txt ]; then pip install -r ${{ matrix.package }}/requirements.txt; fi
       - run: pytest -v
+        working-directory: ${{ matrix.package }}
 
   build-frontend:
     runs-on: ubuntu-latest
@@ -38,15 +41,21 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test-extractor-vertex, build-frontend]
+    needs: [test-python, build-frontend]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
+          # Los extractores se construyen desde la raíz para incluir la librería compartida.
           - service: extractor-vertex
             port: 8080
+            context: .
+          - service: extractor-gemini
+            port: 7070
+            context: .
           - service: frontend
             port: 3000
+            context: frontend
     env:
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/psychometrics/${{ matrix.service }}:${{ github.sha }}
     steps:
@@ -62,11 +71,11 @@ jobs:
       - name: Build y push de la imagen
         run: |
           gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
-          docker build -t $IMAGE ./${{ matrix.service }}
+          docker build -t $IMAGE -f ${{ matrix.service }}/Dockerfile ${{ matrix.context }}
           docker push $IMAGE
 
-      # Las variables de entorno (CORS_ORIGINS, EXTRACTOR_VERTEX_URL) ya están guardadas
-      # en cada servicio de Cloud Run y se conservan entre despliegues.
+      # Las variables de entorno, secretos y service account ya están configurados en cada servicio
+      # de Cloud Run y se conservan entre despliegues.
       - name: Deploy en Cloud Run
         run: |
           gcloud run deploy ${{ matrix.service }} \
