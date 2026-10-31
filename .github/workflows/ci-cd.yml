@@ -1,0 +1,71 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write # necesario para Workload Identity Federation
+
+jobs:
+  test-extractor-vertex:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extractor-vertex
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: pytest -v
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run build
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test-extractor-vertex, build-frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [extractor-vertex, frontend]
+    env:
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/psychometrics/${{ matrix.service }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build y push de la imagen
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+          docker build -t $IMAGE ./${{ matrix.service }}
+          docker push $IMAGE
+
+      # Las variables de entorno (CORS_ORIGINS, EXTRACTOR_VERTEX_URL) ya están guardadas
+      # en cada servicio de Cloud Run y se conservan entre despliegues.
+      - name: Deploy en Cloud Run
+        run: |
+          gcloud run deploy ${{ matrix.service }} \
+            --image=$IMAGE \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --region=${{ vars.GCP_REGION }}
