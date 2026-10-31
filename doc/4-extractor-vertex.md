@@ -353,6 +353,7 @@ Cada caso vive en su carpeta, con el cuestionario de entrada y el `resultado.jso
 |-----------------------|---------|-----------|
 | `01-tipo-doc` | `.docx` | 3 ítems correctos: Likert con valores 0 a 3, selección múltiple con respuesta correcta `C` y desarrollo sin alternativas. |
 | `02-tipo-xlsx` | `.xlsx` | Ver parte 4. |
+| `03-tipo-pdf` | `.pdf` | Ver parte 5. |
 
 Primera llamada real: HTTP 200 en unos 12 segundos. Gemini aceptó sin cambios el esquema generado por Pydantic, que incluye `$defs` y `anyOf`.
 
@@ -457,6 +458,46 @@ En las tres hojas salieron correctas las respuestas de selección múltiple, ver
 
   Los Excel de prueba se crean en memoria con `openpyxl`.
 - `test_schemas.py`: también valida cada `examples/*/resultado-hojas.json`.
+
+## Parte 5: PDF
+
+### Lectura
+
+El PDF no se convierte a texto: se envía tal cual al modelo (`Part.from_bytes` con `application/pdf`). Gemini lee el documento completo, incluido su diseño, lo que permite interpretar elementos visuales que se perderían al extraer solo el texto:
+
+- alternativas marcadas con `(X)` o con color;
+- columnas, como en los emparejamientos;
+- tablas, como una clave de respuestas.
+
+También funciona con PDF escaneados, sin texto seleccionable.
+
+### Caso de prueba `03-tipo-pdf`
+
+Un PDF de 3 páginas con 12 ítems de los 5 tipos. Es el caso más exigente hasta ahora:
+
+- **Ítems agrupados en secciones** ("Parte I. Hábitos de trabajo", "Parte II. Razonamiento..."). Los títulos de sección no son ítems.
+- **Respuestas marcadas visualmente**, con `(X)` y en verde.
+- **Clave de respuestas en la última página**, separada de las preguntas.
+- **Pies de página** repetidos en cada página.
+- **Dos emparejamientos** en columnas, con la respuesta marcada al lado de cada par.
+
+**Resultado con Vertex AI real** (HTTP 200 en unos 18 s): los 12 ítems coinciden con la clave de respuestas.
+
+| Ítems  | Tipo                 | Respuesta correcta                       |
+|--------|----------------------|------------------------------------------|
+| 1 a 3  | `escala_likert`      | `null` (escalas de 4 y 5 puntos, 0 a 3 y 0 a 4) |
+| 4 a 7  | `seleccion_multiple` | `B`, `C`, `B`, `B`                       |
+| 8 y 9  | `verdadero_falso`    | `V`, `F`                                 |
+| 10     | `desarrollo`         | `null`                                   |
+| 11 y 12| `emparejamiento`     | `1-c; 2-b; 3-a` y `1-c; 2-a; 3-b`        |
+
+No hizo falta cambiar el prompt: las reglas definidas con los casos anteriores sirvieron sin ajustes para un formato nuevo.
+
+### Tests
+
+- `test_api.py`: el endpoint acepta el PDF de ejemplo y lo pasa al extractor como `pdf`.
+- `test_questionnaire_extractor.py` ya verificaba que el PDF se envía directo al modelo, sin convertirlo.
+- `test_schemas.py` valida `examples/03-tipo-pdf/resultado.json`.
 
 ## Despliegue en Cloud Run
 
