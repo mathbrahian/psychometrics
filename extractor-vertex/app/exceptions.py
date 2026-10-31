@@ -33,3 +33,8 @@ class TruncatedResponseError(ExtractionError):
 class InvalidModelResponseError(ExtractionError):
     code = "respuesta_invalida"
     status_code = 502
+
+
+class TooManySheetsError(ExtractionError):
+    code = "demasiadas_hojas"
+    status_code = 413

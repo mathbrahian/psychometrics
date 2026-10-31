@@ -7,8 +7,9 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.document_validation import build_input_document
-from app.exceptions import ExtractionError
-from app.models.output_schemas import ErrorResponse, Questionnaire
+from app.exceptions import ExtractionError, UnsupportedFormatError
+from app.models.input_schemas import DocumentFormat
+from app.models.output_schemas import ErrorResponse, Questionnaire, SheetResult
 from app.questionnaire_extractor import QuestionnaireExtractor
 
 app = FastAPI(title="extractor-vertex")
@@ -57,3 +58,20 @@ async def extract_questionnaire(
     content = await file.read()
     document = build_input_document(file.filename or "", content, settings.max_file_size_bytes)
     return await extractor.extract(document)
+
+
+@app.post("/v1/questionnaires/extract-sheets", response_model=list[SheetResult], responses=ERROR_RESPONSES)
+async def extract_questionnaire_sheets(
+    file: UploadFile,
+    extractor: Annotated[QuestionnaireExtractor, Depends(get_extractor)],
+) -> list[SheetResult]:
+    """Recibe un Excel (.xlsx) y procesa cada hoja como un cuestionario independiente, en paralelo.
+
+    Devuelve un resultado por hoja con contenido: el cuestionario o el error de esa hoja.
+    """
+    content = await file.read()
+    document = build_input_document(file.filename or "", content, settings.max_file_size_bytes)
+    if document.format != DocumentFormat.XLSX:
+        msg = "Este endpoint solo acepta archivos .xlsx."
+        raise UnsupportedFormatError(msg)
+    return await extractor.extract_sheets(document)

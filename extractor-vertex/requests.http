@@ -45,3 +45,25 @@ POST {{baseUrl}}/v1/questionnaires/extract
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary--
+
+### Extraer cuestionario: caso 02 (.xlsx, solo la primera hoja)
+POST {{baseUrl}}/v1/questionnaires/extract
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ../examples/02-tipo-xlsx/cuestionario.xlsx
+--boundary--
+
+### Extraer todas las hojas del Excel en paralelo: caso 02 (3 hojas, 3 llamadas a Vertex)
+POST {{baseUrl}}/v1/questionnaires/extract-sheets
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ../examples/02-tipo-xlsx/cuestionario.xlsx
+--boundary--

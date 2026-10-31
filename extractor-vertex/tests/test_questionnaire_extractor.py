@@ -104,10 +104,12 @@ async def test_sends_docx_as_text():
     assert part.text.startswith("Cuestionario de ejemplo")
 
 
-async def test_xlsx_not_supported_yet():
+async def test_sends_xlsx_as_text():
     extractor, models = make_extractor(SPEC_EXAMPLE)
-    document = InputDocument(filename="test.xlsx", format="xlsx", content=b"PK\x03\x04")
+    content = (EXAMPLES_DIR / "02-tipo-xlsx" / "cuestionario.xlsx").read_bytes()
+    document = InputDocument(filename="cuestionario.xlsx", format="xlsx", content=content)
 
-    with pytest.raises(UnsupportedFormatError):
-        await extractor.extract(document)
-    assert models.calls == []
+    await extractor.extract(document)
+
+    [part] = models.calls[0]["contents"]
+    assert part.text.startswith("Cuestionario de ejemplo")

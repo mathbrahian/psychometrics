@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.models.input_schemas import DocumentFormat, InputDocument
-from app.models.output_schemas import Item, ItemType, Questionnaire
+from app.models.output_schemas import Item, ItemType, Questionnaire, SheetResult
 from tests.conftest import EXAMPLES_DIR
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -88,3 +88,12 @@ def test_example_results_match_schema(result_file):
     questionnaire = Questionnaire.model_validate(data)
 
     assert questionnaire.total_items == len(questionnaire.items)
+
+
+@pytest.mark.parametrize("result_file", sorted(EXAMPLES_DIR.glob("*/resultado-hojas.json")), ids=lambda p: p.parent.name)
+def test_example_sheet_results_match_schema(result_file):
+    data = json.loads(result_file.read_text(encoding="utf-8"))
+
+    results = [SheetResult.model_validate(item) for item in data]
+
+    assert all(result.questionnaire is not None for result in results)

@@ -74,3 +74,15 @@ class ErrorResponse(BaseModel):
 
     error: str = Field(description="Código del error.", examples=["formato_invalido", "sin_items"])
     detail: str = Field(alias="detalle", description="Descripción del error para el usuario.")
+
+
+class SheetResult(BaseModel):
+    """Resultado de una hoja de un Excel: el cuestionario extraído o el error de esa hoja."""
+
+    model_config = SPANISH_JSON
+
+    sheet_name: str = Field(alias="hoja", description="Nombre de la hoja del Excel.")
+    questionnaire: Questionnaire | None = Field(
+        alias="cuestionario", default=None, description="Cuestionario extraído, si la hoja se procesó bien."
+    )
+    error: ErrorResponse | None = Field(default=None, description="Error de la hoja, si no se pudo procesar.")

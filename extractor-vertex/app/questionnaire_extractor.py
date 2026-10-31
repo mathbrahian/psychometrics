@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from google import genai
@@ -5,15 +6,17 @@ from google.genai import types
 from pydantic import ValidationError
 
 from app.config import settings
-from app.document_reader import docx_to_text
+from app.document_reader import docx_to_text, xlsx_sheets_to_text, xlsx_to_text
 from app.exceptions import (
     InvalidModelResponseError,
+    ExtractionError,
     NoItemsFoundError,
+    TooManySheetsError,
     TruncatedResponseError,
     UnsupportedFormatError,
 )
 from app.models.input_schemas import MIME_TYPES, DocumentFormat, InputDocument
-from app.models.output_schemas import Questionnaire
+from app.models.output_schemas import ErrorResponse, Questionnaire, SheetResult
 
 logger = logging.getLogger("extractor-vertex")
 
@@ -39,8 +42,11 @@ Reglas por tipo de ítem (`tipo`):
 - `verdadero_falso`: afirmaciones que se responden con verdadero o falso. Las alternativas son
   `V` y `F`, con el texto en el idioma del documento.
 - `desarrollo`: preguntas de respuesta abierta. `alternativas` es una lista vacía.
-- `emparejamiento`: cada elemento de la columna izquierda es un ítem. `alternativas` son los
-  elementos de la columna derecha, con `valor` en letras (A, B, C...).
+- `emparejamiento`: el conjunto de elementos a relacionar es UN solo ítem, con la instrucción
+  como `enunciado`. `alternativas` incluye primero los elementos de la columna izquierda, con
+  `valor` numérico (1, 2, 3...), y después los de la columna derecha, con `valor` en letras
+  minúsculas (a, b, c...). Si el documento indica la respuesta, `respuesta_correcta` es un texto
+  con los pares en el formato "1-b; 2-c; 3-a".
 
 Respuesta correcta (`respuesta_correcta`):
 - Inclúyela solo si el documento la indica (marcada, resaltada o en una clave de respuestas).
@@ -88,21 +94,52 @@ class QuestionnaireExtractor:
             return types.Part.from_bytes(data=document.content, mime_type=MIME_TYPES[DocumentFormat.PDF])
 
         # Gemini no lee .docx ni .xlsx directamente: se envían como texto.
-        if document.format == DocumentFormat.DOCX:
-            text = docx_to_text(document.content)
-            if not text:
-                msg = "El documento no tiene texto."
-                raise NoItemsFoundError(msg)
-            return types.Part.from_text(text=text)
+        readers = {DocumentFormat.DOCX: docx_to_text, DocumentFormat.XLSX: xlsx_to_text}
+        reader = readers.get(document.format)
+        if reader is None:
+            msg = f"El formato {document.format.value} no está soportado."
+            raise UnsupportedFormatError(msg)
 
-        msg = f"El formato {document.format.value} todavía no está soportado."
-        raise UnsupportedFormatError(msg)
+        text = reader(document.content)
+        if not text:
+            msg = "El documento no tiene texto."
+            raise NoItemsFoundError(msg)
+        return types.Part.from_text(text=text)
 
     async def extract(self, document: InputDocument) -> Questionnaire:
         """Envía el documento al modelo y devuelve el cuestionario validado."""
+        return await self._extract_part(self.build_document_part(document))
+
+    async def extract_sheets(self, document: InputDocument) -> list[SheetResult]:
+        """Procesa cada hoja de un Excel como un cuestionario independiente, todas en paralelo.
+
+        Las hojas vacías se omiten. El error de una hoja no afecta a las demás.
+        """
+        sheets = [(name, text) for name, text in xlsx_sheets_to_text(document.content) if text]
+        if not sheets:
+            msg = "El Excel no tiene hojas con contenido."
+            raise NoItemsFoundError(msg)
+        if len(sheets) > settings.MAX_SHEETS:
+            msg = f"El Excel tiene {len(sheets)} hojas con contenido; el máximo es {settings.MAX_SHEETS}."
+            raise TooManySheetsError(msg)
+
+        return list(await asyncio.gather(*(self._extract_sheet(name, text) for name, text in sheets)))
+
+    async def _extract_sheet(self, name: str, text: str) -> SheetResult:
+        try:
+            questionnaire = await self._extract_part(types.Part.from_text(text=text))
+            return SheetResult(sheet_name=name, questionnaire=questionnaire)
+        except ExtractionError as error:
+            return SheetResult(sheet_name=name, error=ErrorResponse(error=error.code, detail=str(error)))
+        except Exception:
+            logger.exception("Error inesperado procesando la hoja %s", name)
+            detail = "Ocurrió un error inesperado al procesar la hoja."
+            return SheetResult(sheet_name=name, error=ErrorResponse(error=ExtractionError.code, detail=detail))
+
+    async def _extract_part(self, part: types.Part) -> Questionnaire:
         response = await self.client.aio.models.generate_content(
             model=settings.GENAI_MODEL,
-            contents=[self.build_document_part(document)],
+            contents=[part],
             config=self.config,
         )
 
