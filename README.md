@@ -13,7 +13,7 @@ cp .env.example .env
 CLOUDSDK_CONFIG=~/.config/gcloud-psychometrics gcloud auth application-default login
 ```
 
-Detalle en [doc/4-extractor-vertex.md](doc/4-extractor-vertex.md). Luego, desde la raíz del repo:
+Detalle en [doc/4-extractor-vertex-infra.md](doc/4-extractor-vertex-infra.md). Luego, desde la raíz del repo:
 
 **Modo producción** (las mismas imágenes que van a Cloud Run):
 

@@ -1,4 +1,4 @@
-# 4 - Extractor Vertex
+# 4 - Extractor Vertex: infraestructura
 
 Esta etapa construye el core de la solución: un microservicio que recibe un cuestionario en PDF, Word o Excel y devuelve sus ítems en un JSON estructurado.
 
