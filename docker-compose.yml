@@ -21,9 +21,9 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3000:8080"
+      - "3000:3000"
     environment:
-      PORT: 8080
+      PORT: 3000
       # La llamada la hace el navegador, por eso es localhost y no el nombre del servicio.
       EXTRACTOR_VERTEX_URL: http://localhost:8080
     depends_on:

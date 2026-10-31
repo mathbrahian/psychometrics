@@ -13,7 +13,7 @@ services:
   frontend:
     build:
       target: build
-    command: npm run dev -- --host 0.0.0.0 --port 8080
+    command: npm run dev -- --host 0.0.0.0 --port 3000
     volumes:
       - ./frontend:/app
       - /app/node_modules
