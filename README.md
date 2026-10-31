@@ -32,6 +32,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 | `frontend`         | http://localhost:3000      |
 | `extractor-vertex` | http://localhost:8080/docs |
 | `extractor-gemini` | http://localhost:7070/docs |
+| `backend`          | http://localhost:9090/docs |
 
 ## Documentación y videos
 
