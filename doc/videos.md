@@ -5,3 +5,4 @@ Registro en video de cada etapa del proyecto, en el mismo orden que los document
 | # | Video | Documentación relacionada | Contenido |
 |---|-------|---------------------------|-----------|
 | 1 | [Ver video](https://youtu.be/JHTu_3EpiO4) | [1 - Lectura y planeación](1-lectura-y-planeacion.md), [2 - Aplicación nativa](2-aplicacion-nativa.md) | Lectura de la prueba, planeación y preparación del entorno nativo de nube |
+| 2 | [Ver video](https://youtu.be/sdRRXk8aNe4) | [2 - Aplicación nativa](2-aplicacion-nativa.md) | Despliegue en Cloud Run y pipeline de CI/CD desde GitHub con Workload Identity Federation |
