@@ -37,3 +37,10 @@ Para usar otro puerto en local:
 ```bash
 docker run --rm -e PORT=9000 -p 9000:9000 extractor-vertex
 ```
+
+## Tests
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -v
+```
