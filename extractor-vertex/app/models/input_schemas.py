@@ -3,7 +3,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
-class FormatoDocumento(str, Enum):
+class DocumentFormat(str, Enum):
     """Formatos de archivo soportados."""
 
     PDF = "pdf"
@@ -13,19 +13,19 @@ class FormatoDocumento(str, Enum):
 
 # Tipo MIME esperado para cada formato.
 MIME_TYPES = {
-    FormatoDocumento.PDF: "application/pdf",
-    FormatoDocumento.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    FormatoDocumento.XLSX: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    DocumentFormat.PDF: "application/pdf",
+    DocumentFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    DocumentFormat.XLSX: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
 
-class DocumentoEntrada(BaseModel):
+class InputDocument(BaseModel):
     """Documento recibido por la API, ya leído en memoria."""
 
-    nombre_archivo: str = Field(description="Nombre original del archivo subido.")
-    formato: FormatoDocumento = Field(description="Formato del documento, según su extensión.")
-    contenido: bytes = Field(description="Contenido binario del archivo.", repr=False)
+    filename: str = Field(description="Nombre original del archivo subido.")
+    format: DocumentFormat = Field(description="Formato del documento, según su extensión.")
+    content: bytes = Field(description="Contenido binario del archivo.", repr=False)
 
     @property
-    def tamano_bytes(self) -> int:
-        return len(self.contenido)
+    def size_bytes(self) -> int:
+        return len(self.content)

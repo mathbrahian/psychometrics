@@ -14,42 +14,50 @@ Cada documento se procesa con **una sola llamada a Vertex AI**, con todo el cont
 
 Los modelos se definen con Pydantic en `extractor-vertex/app/models/`. Sirven para validar los datos y para documentar la API en `/docs`. Más adelante, el mismo modelo de salida se usará como esquema de la respuesta estructurada de Gemini, así que el esquema se define una sola vez.
 
-Los nombres de clases y campos están en español para coincidir con el JSON que pide la prueba.
+**Idioma del código:** el código funcional (clases, campos, funciones y tests) está en inglés; la documentación, los comentarios y las salidas JSON, en español. El JSON usa los nombres que exige la prueba (`titulo`, `enunciado`...) gracias a los **alias** de Pydantic:
+
+```python
+statement: str = Field(alias="enunciado", ...)
+```
+
+Con `validate_by_name`, `validate_by_alias` y `serialize_by_alias`, los modelos aceptan ambos nombres al validar y siempre serializan con el nombre en español. Por eso se fija `pydantic==2.14.2` en `requirements.txt`, ya que esas opciones requieren Pydantic 2.11 o superior.
 
 ### Entrada (`input_schemas.py`)
 
 | Modelo             | Descripción                                                                 |
 |--------------------|-----------------------------------------------------------------------------|
-| `FormatoDocumento` | Enum con los formatos soportados: `pdf`, `docx`, `xlsx`.                    |
+| `DocumentFormat`   | Enum con los formatos soportados: `pdf`, `docx`, `xlsx`.                    |
 | `MIME_TYPES`       | Tipo MIME esperado para cada formato, para validar el contenido real del archivo. |
-| `DocumentoEntrada` | Documento recibido ya leído en memoria: `nombre_archivo`, `formato`, `contenido` y la propiedad `tamano_bytes`. |
+| `InputDocument`    | Documento recibido ya leído en memoria: `filename`, `format`, `content` y la propiedad `size_bytes`. |
 
-El archivo llega a la API como `multipart/form-data`. `DocumentoEntrada` es la representación interna una vez leído y validado, y es lo que reciben las capas siguientes.
+El archivo llega a la API como `multipart/form-data`. `InputDocument` es la representación interna una vez leído y validado, y es lo que reciben las capas siguientes.
 
 ### Salida (`output_schemas.py`)
 
+Campo en el código → nombre en el JSON:
+
 ```
-Cuestionario
-├── titulo: str | None
-├── idioma: str            (ISO 639-1)
-├── total_items: int       (≥ 0)
-└── items: list[Item]
-    ├── numero: int        (≥ 1)
-    ├── enunciado: str
-    ├── tipo: TipoItem
-    ├── alternativas: list[Alternativa]
-    │   ├── valor: int | str
-    │   └── texto: str
-    └── respuesta_correcta: int | str | None
+Questionnaire
+├── title           → titulo: str | None
+├── language        → idioma: str            (ISO 639-1)
+├── total_items     → total_items: int       (≥ 0)
+└── items           → items: list[Item]
+    ├── number          → numero: int        (≥ 1)
+    ├── statement       → enunciado: str
+    ├── type            → tipo: ItemType
+    ├── options         → alternativas: list[Option]
+    │   ├── value           → valor: int | str
+    │   └── text            → texto: str
+    └── correct_answer  → respuesta_correcta: int | str | None
 ```
 
 | Modelo          | Descripción                                                                 |
 |-----------------|-----------------------------------------------------------------------------|
-| `TipoItem`      | Enum: `escala_likert`, `seleccion_multiple`, `verdadero_falso`, `desarrollo`, `emparejamiento`. |
-| `Alternativa`   | Una opción de respuesta.                                                    |
+| `ItemType`      | Enum. Miembros en inglés (`LIKERT_SCALE`, `MULTIPLE_CHOICE`, `TRUE_FALSE`, `OPEN_ENDED`, `MATCHING`), valores en español: `escala_likert`, `seleccion_multiple`, `verdadero_falso`, `desarrollo`, `emparejamiento`. |
+| `Option`        | Una alternativa de respuesta.                                               |
 | `Item`          | Una pregunta o afirmación del cuestionario.                                 |
-| `Cuestionario`  | El resultado completo de la extracción.                                     |
-| `ErrorRespuesta`| Respuesta de error: `error` (código) y `detalle` (mensaje para el usuario). |
+| `Questionnaire` | El resultado completo de la extracción.                                     |
+| `ErrorResponse` | Respuesta de error: `error` (código, por ejemplo `formato_invalido`) y `detalle` (mensaje para el usuario). |
 
 Cada campo lleva una `description`. Además de documentar la API, servirá de guía para el modelo cuando se use como esquema de respuesta.
 
@@ -65,6 +73,7 @@ Pendiente de definir en las reglas de negocio: cómo representar los ítems de `
 
 ### Tests (`tests/test_schemas.py`)
 
-- El JSON de ejemplo del enunciado (`tests/data/ejemplo_enunciado.json`) es válido y, al serializarlo, se obtiene exactamente el mismo JSON.
+- El JSON de ejemplo del enunciado (`tests/data/spec_example.json`) es válido y, al serializarlo, se obtiene exactamente el mismo JSON, con los nombres en español.
+- Los modelos también aceptan los nombres en inglés y los serializan en español.
 - Un ítem de desarrollo no tiene alternativas por defecto.
 - Se rechazan un tipo de ítem desconocido, un número de ítem menor a 1, un idioma que no sea ISO 639-1 y un formato de documento no soportado.

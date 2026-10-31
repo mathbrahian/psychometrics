@@ -4,65 +4,77 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.models.input_schemas import DocumentoEntrada, FormatoDocumento
-from app.models.output_schemas import Cuestionario, Item, TipoItem
+from app.models.input_schemas import DocumentFormat, InputDocument
+from app.models.output_schemas import Item, ItemType, Questionnaire
 
 DATA_DIR = Path(__file__).parent / "data"
 
 
-def leer_json(nombre: str) -> dict:
-    return json.loads((DATA_DIR / nombre).read_text(encoding="utf-8"))
+def read_json(filename: str) -> dict:
+    return json.loads((DATA_DIR / filename).read_text(encoding="utf-8"))
 
 
-def test_ejemplo_del_enunciado_es_valido():
-    cuestionario = Cuestionario.model_validate(leer_json("ejemplo_enunciado.json"))
+def test_spec_example_is_valid():
+    questionnaire = Questionnaire.model_validate(read_json("spec_example.json"))
 
-    assert cuestionario.idioma == "it"
-    assert cuestionario.total_items == 3
-    assert [item.tipo for item in cuestionario.items] == [
-        TipoItem.ESCALA_LIKERT,
-        TipoItem.SELECCION_MULTIPLE,
-        TipoItem.DESARROLLO,
+    assert questionnaire.language == "it"
+    assert questionnaire.total_items == 3
+    assert [item.type for item in questionnaire.items] == [
+        ItemType.LIKERT_SCALE,
+        ItemType.MULTIPLE_CHOICE,
+        ItemType.OPEN_ENDED,
     ]
-    assert cuestionario.items[1].respuesta_correcta == "C"
+    assert questionnaire.items[1].correct_answer == "C"
 
 
-def test_serializacion_conserva_el_esquema():
-    datos = leer_json("ejemplo_enunciado.json")
+def test_serialization_uses_spanish_field_names():
+    data = read_json("spec_example.json")
 
-    assert Cuestionario.model_validate(datos).model_dump(mode="json") == datos
+    assert Questionnaire.model_validate(data).model_dump(mode="json") == data
 
 
-def test_item_de_desarrollo_sin_alternativas_por_defecto():
+def test_accepts_english_field_names():
+    item = Item(number=1, statement="Describa su día.", type=ItemType.OPEN_ENDED)
+
+    assert item.model_dump(mode="json") == {
+        "numero": 1,
+        "enunciado": "Describa su día.",
+        "tipo": "desarrollo",
+        "alternativas": [],
+        "respuesta_correcta": None,
+    }
+
+
+def test_open_ended_item_has_no_options_by_default():
     item = Item(numero=1, enunciado="Describa su día.", tipo="desarrollo")
 
-    assert item.alternativas == []
-    assert item.respuesta_correcta is None
+    assert item.options == []
+    assert item.correct_answer is None
 
 
-def test_rechaza_tipo_de_item_desconocido():
+def test_rejects_unknown_item_type():
     with pytest.raises(ValidationError):
         Item(numero=1, enunciado="Pregunta", tipo="abierta")
 
 
-def test_rechaza_numero_de_item_menor_a_uno():
+def test_rejects_item_number_below_one():
     with pytest.raises(ValidationError):
         Item(numero=0, enunciado="Pregunta", tipo="desarrollo")
 
 
-@pytest.mark.parametrize("idioma", ["ita", "IT", "", "italiano"])
-def test_rechaza_idioma_que_no_es_iso_639_1(idioma):
+@pytest.mark.parametrize("language", ["ita", "IT", "", "italiano"])
+def test_rejects_language_not_iso_639_1(language):
     with pytest.raises(ValidationError):
-        Cuestionario(idioma=idioma, total_items=0, items=[])
+        Questionnaire(idioma=language, total_items=0, items=[])
 
 
-def test_documento_entrada_calcula_tamano():
-    documento = DocumentoEntrada(nombre_archivo="test.pdf", formato="pdf", contenido=b"12345")
+def test_input_document_computes_size():
+    document = InputDocument(filename="test.pdf", format="pdf", content=b"12345")
 
-    assert documento.formato == FormatoDocumento.PDF
-    assert documento.tamano_bytes == 5
+    assert document.format == DocumentFormat.PDF
+    assert document.size_bytes == 5
 
 
-def test_documento_entrada_rechaza_formato_no_soportado():
+def test_input_document_rejects_unsupported_format():
     with pytest.raises(ValidationError):
-        DocumentoEntrada(nombre_archivo="test.txt", formato="txt", contenido=b"hola")
+        InputDocument(filename="test.txt", format="txt", content=b"hola")
