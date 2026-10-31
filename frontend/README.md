@@ -12,7 +12,7 @@ Desde la carpeta `frontend/`:
 
 ```bash
 docker build -t frontend .
-docker run --rm -p 3000:8080 frontend
+docker run --rm -p 3000:3000 frontend
 ```
 
 La app queda en http://localhost:3000.
@@ -26,5 +26,5 @@ La app queda en http://localhost:3000.
 
 | Variable | Default | Descripción                                                    |
 |----------|---------|----------------------------------------------------------------|
-| `PORT`   | `8080`  | Puerto en el que escucha el servidor. Cloud Run lo asigna solo. |
+| `PORT`   | `3000`  | Puerto en el que escucha el servidor. En Cloud Run el servicio se despliega con `--port=3000`. |
 | `EXTRACTOR_VERTEX_URL` | `http://localhost:8080` | URL pública de extractor-vertex. La usa el navegador, no el contenedor. |

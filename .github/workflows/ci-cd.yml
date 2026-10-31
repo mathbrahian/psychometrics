@@ -42,7 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [extractor-vertex, frontend]
+        include:
+          - service: extractor-vertex
+            port: 8080
+          - service: frontend
+            port: 3000
     env:
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/psychometrics/${{ matrix.service }}:${{ github.sha }}
     steps:
@@ -67,5 +71,6 @@ jobs:
         run: |
           gcloud run deploy ${{ matrix.service }} \
             --image=$IMAGE \
+            --port=${{ matrix.port }} \
             --project=${{ vars.GCP_PROJECT_ID }} \
             --region=${{ vars.GCP_REGION }}

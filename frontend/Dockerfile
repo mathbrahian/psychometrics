@@ -18,7 +18,9 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY docker-entrypoint.sh ./
 
-ENV PORT=8080 \
+ENV PORT=3000 \
     EXTRACTOR_VERTEX_URL=http://localhost:8080
+
+EXPOSE 3000
 
 CMD ["sh", "docker-entrypoint.sh"]
