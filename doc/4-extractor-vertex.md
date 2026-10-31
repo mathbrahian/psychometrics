@@ -388,6 +388,16 @@ El pipeline despliega solo al mergear a `main`. Un push a la rama solo corre los
 gcloud run services update extractor-vertex --update-env-vars=GOOGLE_CLOUD_LOCATION=global
 ```
 
+**Problema en el CI:** al mergear el PR, el pipeline falló en `test_requires_file`. Ese test no reemplazaba el extractor por el falso, así que FastAPI creaba el cliente real de Vertex AI, que busca credenciales al construirse. En GitHub Actions no hay credenciales, y por eso fallaba. En local pasaba porque el SDK encontraba las credenciales por defecto de la máquina, aunque no llegaba a hacer ninguna llamada.
+
+**Solución:** ese test también usa el extractor falso. Para detectar este tipo de dependencia, los tests se verifican sin ninguna credencial disponible:
+
+```bash
+env -u GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_CONFIG=/nonexistent HOME=/tmp pytest -q
+```
+
+Como los tests fallaron, el job `deploy` no se ejecutó y Cloud Run siguió con la versión anterior.
+
 Para revisar las variables y la service account del servicio:
 
 ```bash

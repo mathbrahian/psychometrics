@@ -222,3 +222,6 @@ __marimo__/
 # Notas locales para el asistente
 CLAUDE.md
 Prueba Tecnica - Backend Developer Python - GP.docx
+
+# Archivos de bloqueo de LibreOffice
+.~lock.*#

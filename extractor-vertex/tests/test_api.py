@@ -89,7 +89,8 @@ def test_returns_error_from_extractor(fake_extractor, error, status, code):
     assert response.json() == {"error": code, "detalle": str(error)}
 
 
-def test_requires_file():
+def test_requires_file(fake_extractor):
     response = client.post(URL)
 
     assert response.status_code == 422
+    assert fake_extractor.documents == []
