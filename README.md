@@ -21,3 +21,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 |--------------------|----------------------------|
 | `frontend`         | http://localhost:3000      |
 | `extractor-vertex` | http://localhost:8080/docs |
+
+## Documentación y videos
+
+- Documentación de cada etapa en [`doc/`](doc/).
+- Videos de avance en [`doc/videos.md`](doc/videos.md).
