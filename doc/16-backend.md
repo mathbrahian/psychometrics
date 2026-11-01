@@ -289,12 +289,21 @@ Con el backend y `extractor-gemini` en la misma red Docker, y llamada real a la 
 
 ## Paso 6, versión en crudo: el frontend usa el backend
 
-Se adelantó una versión mínima del paso 6, para que la app siga funcionando con los extractores cerrados. `frontend/src/App.jsx`:
+El frontend se hace primero **plano**: todas las funciones de la app en HTML sin colores ni CSS, para comprobar el flujo completo. El diseño se hará después, sobre esta base. `frontend/src/App.jsx`:
 
-1. **Formulario de inicio de sesión:** usuario y contraseña contra `POST /auth/login`. El token queda en memoria, y **Cerrar sesión** lo descarta.
-2. **Extracción:** elige el proveedor (Gemini API o Vertex AI) y el modo (un cuestionario o todas las hojas del Excel), sube el archivo con el token y muestra la respuesta en crudo.
+| Sección | Qué hace | Endpoint del backend |
+|---|---|---|
+| Inicio de sesión | Usuario y contraseña. El token queda en memoria; **Cerrar sesión** lo descarta. Si el backend responde `401` (token vencido), se vuelve al login. | `POST /auth/login` |
+| Extraer | Proveedor (Gemini API o Vertex AI), modo (un cuestionario o todas las hojas del Excel) y archivo. **Limpiar** borra la consulta actual: el archivo elegido, el cuestionario detectado y la última respuesta. | `POST /v1/questionnaires/extract` o `/extract-sheets` |
+| Cuestionario detectado | El cuestionario en pantalla, **Descargar JSON** (requisito de la prueba) y **Guardar**. De un Excel por hojas se muestra y se guarda un cuestionario por cada hoja procesada con éxito, y se listan los errores de las demás. | `POST /v1/questionnaires` |
+| Cuestionarios guardados | Lista con título, idioma, ítems, proveedor, archivo y fecha, que se carga al iniciar sesión. **Ver** muestra el cuestionario en pantalla, con **Descargar JSON**, **Eliminar** y **Cerrar**. | `GET`, `GET /{id}` y `DELETE /{id}` |
+| Última respuesta del backend | Plegada (`<details>`): método, ruta, código HTTP y JSON de la última llamada, para depurar. | |
 
-La configuración en tiempo de ejecución pasa de `EXTRACTOR_VERTEX_URL` a **`BACKEND_URL`** (`config.js`, `docker-entrypoint.sh`, `vite.config.js`, `Dockerfile` y compose). El frontend ya no conoce las URLs de los extractores.
+El cuestionario se muestra con `frontend/src/QuestionnaireView.jsx`, en HTML plano: título, idioma y cantidad de ítems; y por cada ítem, su enunciado, su tipo, sus alternativas y la respuesta correcta, si el documento la indica. El mismo componente sirve para el resultado de la extracción y para un cuestionario guardado. Se verificó renderizándolo con el resultado del caso `03-tipo-pdf`, que incluye los 5 tipos de ítem.
+
+La descarga se genera en el navegador (`Blob` y un enlace temporal), sin otra llamada al backend.
+
+La configuración en tiempo de ejecución pasó de `EXTRACTOR_VERTEX_URL` a **`BACKEND_URL`** (`config.js`, `docker-entrypoint.sh`, `vite.config.js`, `Dockerfile` y compose). El frontend ya no conoce las URLs de los extractores.
 
 ## Paso 4: base de datos en Cloud SQL
 
