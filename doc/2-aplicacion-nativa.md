@@ -292,6 +292,47 @@ El número de proyecto se obtiene con `gcloud projects describe <PROJECT_ID> --f
 
 ### Paso 5: tests y pipeline de GitHub Actions
 
+**Estado final del pipeline**, después de sumar la librería compartida, `extractor-gemini` y el backend (etapas 14 y 16):
+
+```mermaid
+flowchart TD
+    PR["Pull request"] --> CI
+    MERGE["Merge a main"] --> CI
+
+    subgraph CI["Integración continua: en cada pull request y en cada push a main"]
+        direction LR
+        subgraph TESTS["test-python: matriz en paralelo"]
+            direction TB
+            T1["libs/questionnaire-core"]
+            T2["extractor-vertex"]
+            T3["extractor-gemini"]
+            T4["backend"]
+        end
+        BF["build-frontend: npm ci y npm run build"]
+    end
+
+    CI --> CHECK{"¿Es un push a main y pasaron todos los jobs?"}
+    CHECK -- "No: pull request o algún job falló" --> STOP["No se despliega. Cloud Run sigue con la versión anterior"]
+    CHECK -- "Sí" --> AUTH
+
+    AUTH["Autenticación con Workload Identity Federation: GitHub emite un token OIDC, GCP lo valida y entrega un token temporal de github-deployer, sin llaves en el repositorio"]
+
+    AUTH --> DEPLOY
+
+    subgraph DEPLOY["deploy: matriz en paralelo, una imagen por servicio"]
+        direction TB
+        D1["extractor-vertex · puerto 8080 · contexto: raíz"]
+        D2["extractor-gemini · puerto 7070 · contexto: raíz"]
+        D3["backend · puerto 9090 · contexto: raíz"]
+        D4["frontend · puerto 3000 · contexto: frontend/"]
+    end
+
+    DEPLOY --> BUILD["docker build y push a Artifact Registry, con el SHA del commit como etiqueta"]
+    BUILD --> RUN["gcloud run deploy --port: Cloud Run crea una revisión nueva y conserva variables, secretos, service account y permisos"]
+```
+
+El resto de esta sección describe la primera versión, con `extractor-vertex` y el frontend.
+
 **Tests** (`extractor-vertex/tests/`), con Pytest y el `TestClient` de FastAPI:
 
 - `GET /` y `GET /health` responden lo esperado.

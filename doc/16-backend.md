@@ -232,6 +232,68 @@ Que el login falso responda `credenciales_invalidas` y no `503 servicio_no_confi
 
 ## Paso 3: el backend consume los extractores
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant F as Frontend (React)
+    participant B as Backend (FastAPI)
+    participant G as Google (metadatos de Cloud Run)
+    participant E as Extractor (Gemini API o Vertex AI)
+    participant M as Modelo Gemini
+    participant DB as Cloud SQL (PostgreSQL)
+
+    U->>F: Usuario y contraseña
+    F->>B: POST /auth/login
+    B->>B: Verifica la contraseña contra el hash argon2
+    B-->>F: JWT (vence en 8 horas)
+
+    U->>F: Elige el modelo y sube el archivo
+    F->>F: Valida extensión, archivo vacío y tamaño (10 MB)
+    F->>B: POST /v1/questionnaires/extract?proveedor=gemini con el JWT
+    alt JWT ausente, inválido o vencido
+        B-->>F: 401 no_autenticado / token_invalido / token_vencido
+    else JWT válido
+        B->>G: Pide un ID token con la URL del extractor como audience
+        G-->>B: ID token de backend-runtime
+        B->>E: Reenvía el archivo con el ID token
+        Note over E: Cloud Run verifica el ID token y que backend-runtime tenga run.invoker
+        E->>E: Valida extensión, tamaño y contenido real del archivo
+        alt Archivo inválido
+            E-->>B: 400 archivo_vacio / 413 archivo_demasiado_grande / 415 formato_invalido
+        else Archivo válido
+            alt PDF
+                E->>M: Bytes del PDF, instrucciones y esquema JSON
+            else DOCX o XLSX
+                E->>E: Convierte el documento a texto
+                E->>M: Texto, instrucciones y esquema JSON
+            end
+            M-->>E: JSON del cuestionario
+            E->>E: Valida la respuesta contra el esquema de Pydantic
+            alt Límite de uso del modelo
+                E-->>B: 429 limite_de_uso
+            else Respuesta cortada
+                E-->>B: 422 documento_demasiado_grande
+            else Respuesta fuera del esquema
+                E-->>B: 502 respuesta_invalida
+            else Sin ítems
+                E-->>B: 422 sin_items
+            else Cuestionario válido
+                E-->>B: 200 cuestionario
+            end
+        end
+        B-->>F: La respuesta del extractor, sin cambios
+    end
+    F-->>U: Cuestionario en pantalla o mensaje de error
+
+    opt Guardar
+        U->>F: Guardar
+        F->>B: POST /v1/questionnaires con el JWT
+        B->>DB: INSERT en questionnaires (cuestionario en JSONB)
+        B-->>F: 201 cuestionario guardado
+    end
+```
+
 ### Endpoints
 
 ```
