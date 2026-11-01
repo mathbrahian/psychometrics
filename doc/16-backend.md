@@ -389,6 +389,110 @@ gcloud sql instances patch psychometrics-db --activation-policy=NEVER    # deten
 gcloud sql instances patch psychometrics-db --activation-policy=ALWAYS   # encender
 ```
 
+### Código: capas de DDD
+
+```
+backend/app/questionnaires/
+├── domain.py           # Dominio: entidad SavedQuestionnaire y contrato QuestionnaireRepository
+├── service.py          # Aplicación: casos de uso (guardar, listar, ver, eliminar)
+├── sql_repository.py   # Infraestructura: tabla QuestionnaireRow y repositorio con SQLAlchemy
+├── schemas.py          # API: entrada y salida en español (alias de Pydantic)
+└── router.py           # API: endpoints protegidos
+backend/app/db.py       # Engine y sesión de SQLAlchemy
+backend/migrations/     # Alembic
+```
+
+| Capa              | Depende de                  | No sabe de                       |
+|-------------------|-----------------------------|----------------------------------|
+| Dominio           | `questionnaire_core` (el modelo `Questionnaire`) | FastAPI, SQLAlchemy, la base de datos |
+| Aplicación        | Dominio                     | FastAPI, SQLAlchemy              |
+| Infraestructura   | Dominio, SQLAlchemy         | FastAPI                          |
+| API               | Aplicación, infraestructura | —                                |
+
+- **El dominio define el contrato** del repositorio (`QuestionnaireRepository`, un `Protocol`) y la infraestructura lo implementa. Cambiar de base de datos solo afectaría a `sql_repository.py`.
+- **La entidad** `SavedQuestionnaire` guarda el `Questionnaire` de la librería compartida, el proveedor y el archivo de origen. Título, idioma y cantidad de ítems se **derivan** del cuestionario, así que no pueden quedar desincronizados.
+- **`Provider`** (`vertex` o `gemini`) se define una sola vez en el dominio y lo usan también los endpoints de extracción.
+
+### Endpoints
+
+Todos requieren sesión iniciada.
+
+| Método | Ruta                       | Respuesta |
+|--------|----------------------------|-----------|
+| POST   | `/v1/questionnaires`       | `201` con el cuestionario guardado |
+| GET    | `/v1/questionnaires`       | `200` con la lista, del más reciente al más antiguo, **sin ítems** |
+| GET    | `/v1/questionnaires/{id}`  | `200` con el cuestionario completo, o `404 cuestionario_no_encontrado` |
+| DELETE | `/v1/questionnaires/{id}`  | `204`, o `404 cuestionario_no_encontrado` |
+
+```json
+POST /v1/questionnaires
+{ "proveedor": "gemini", "archivo_origen": "cuestionario.docx", "cuestionario": { "titulo": "...", "idioma": "es", "total_items": 3, "items": [...] } }
+
+→ 201
+{ "id": "...", "titulo": "...", "idioma": "es", "total_items": 3, "proveedor": "gemini",
+  "archivo_origen": "cuestionario.docx", "creado_en": "2026-11-01T...", "cuestionario": { ... } }
+```
+
+El cuestionario recibido se valida con el mismo esquema de la librería compartida, así que no se puede guardar un JSON que no cumpla el formato de la prueba (`422`).
+
+Si la base de datos no responde, los endpoints devuelven `503 base_de_datos_no_disponible`.
+
+### Tabla y migraciones
+
+`QuestionnaireRow` usa `JSON().with_variant(JSONB(), "postgresql")`: **JSONB** en PostgreSQL y JSON genérico en otros motores. Así los tests corren sobre SQLite en memoria, que es rápido y no necesita servidor, y la base real usa JSONB.
+
+Las migraciones se manejan con **Alembic**. La primera (`0001_create_questionnaires`) crea la tabla y un índice por `created_at`, que es el orden de la lista. La URL de conexión no está en `alembic.ini`: sale de `app.config`, igual que en la API.
+
+**El contenedor aplica las migraciones al arrancar** (`alembic upgrade head && uvicorn ...`). Si ya están aplicadas, no hace nada. Con una sola instancia es suficiente; con muchas instancias arrancando a la vez convendría moverlas a un Cloud Run Job.
+
+**Problema encontrado:** la primera vez, el contenedor no arrancó con *"No module named 'app'"*. El comando `alembic` no agrega la carpeta actual al `sys.path`, así que `migrations/env.py` no encontraba el paquete. Se resolvió con `prepend_sys_path = .` en `alembic.ini`.
+
+### Conexión
+
+| Entorno   | Cómo se conecta                                         | Variables |
+|-----------|---------------------------------------------------------|-----------|
+| Local     | Contenedor `postgres:17-alpine` del compose, por TCP    | `DB_HOST=postgres`, `DB_PASSWORD=app` |
+| Cloud Run | Cloud SQL por socket Unix (`/cloudsql/<connectionName>`) | `DB_INSTANCE_CONNECTION_NAME`, `DB_PASSWORD` desde Secret Manager |
+
+En el compose, el backend espera a que PostgreSQL esté listo (`healthcheck` con `pg_isready`). Los datos locales viven en el volumen `postgres-data`. En modo desarrollo también se monta `backend/migrations`.
+
+### Configuración en Cloud Run
+
+**Debe hacerse antes del merge.** El contenedor aplica las migraciones al arrancar: sin la configuración de la base, no arranca, y el despliegue falla (Cloud Run mantiene la versión anterior).
+
+```bash
+source .env.gcp
+CONN=$(gcloud sql instances describe psychometrics-db --format="value(connectionName)")
+
+gcloud run services update backend --region=us-central1 \
+  --add-cloudsql-instances=$CONN \
+  --update-env-vars=DB_INSTANCE_CONNECTION_NAME=$CONN,DB_USER=app,DB_NAME=psychometrics \
+  --update-secrets=DB_PASSWORD=backend-db-password:latest
+```
+
+Se usa **`--update-secrets`** y no `--set-secrets`: `--set-secrets` reemplazaría todos los secretos del servicio y borraría `AUTH_PASSWORD_HASH` y `JWT_SECRET`.
+
+Mientras se ejecuta este `update`, el servicio todavía corre la imagen anterior, que no usa la base: el cambio no afecta nada hasta el merge.
+
+### Verificación
+
+En local, contra PostgreSQL 17 real:
+
+| Prueba                          | Resultado                                         |
+|---------------------------------|---------------------------------------------------|
+| Arranque                        | Alembic aplica `0001`; luego arranca la API       |
+| Guardar el caso `03-tipo-pdf`   | `201`, 12 ítems                                   |
+| Listar                          | Un elemento, sin ítems                            |
+| Ver                             | El cuestionario es igual al JSON original         |
+| Eliminar                        | `204`; la lista queda vacía                       |
+| Tipos en PostgreSQL             | `content: jsonb`, `id: uuid`, `created_at: timestamptz` |
+| Reinicio del contenedor         | No vuelve a migrar                                |
+
+### Tests
+
+- `tests/test_questionnaires.py` (14 tests): guardar, listar ordenado y sin ítems, ver, eliminar, `404` con un id desconocido, `422` con un id inválido, con un cuestionario inválido o con un proveedor desconocido, y `401` en todos los endpoints sin sesión. Usan SQLite en memoria.
+- `tests/test_migrations.py`: la migración crea la tabla con sus columnas y el `downgrade` la elimina.
+
 ## Plan: que solo el backend consuma los extractores
 
 **Objetivo:** que nadie, ni el frontend ni alguien con curl o Postman, pueda llamar a `extractor-vertex` ni a `extractor-gemini` directamente. Solo el backend podrá hacerlo, y el backend exige iniciar sesión. Así se elimina el riesgo de que un tercero consuma la cuota o el crédito de Gemini.

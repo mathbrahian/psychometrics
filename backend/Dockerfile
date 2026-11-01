@@ -13,7 +13,10 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir /opt/questionnaire-core -r requirements.txt
 
 COPY backend/app ./app
+COPY backend/alembic.ini ./
+COPY backend/migrations ./migrations
 
 EXPOSE 9090
 
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+# Aplica las migraciones pendientes antes de arrancar la API.
+CMD alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}

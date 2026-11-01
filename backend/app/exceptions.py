@@ -43,3 +43,13 @@ class ExtractorTimeoutError(BackendError):
 class ExtractorNotConfiguredError(BackendError):
     code = "servicio_no_configurado"
     status_code = 503
+
+
+class QuestionnaireNotFoundError(BackendError):
+    code = "cuestionario_no_encontrado"
+    status_code = 404
+
+
+class DatabaseUnavailableError(BackendError):
+    code = "base_de_datos_no_disponible"
+    status_code = 503

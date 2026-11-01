@@ -50,9 +50,34 @@ services:
       EXTRACTOR_VERTEX_URL: http://extractor-vertex:8080
       EXTRACTOR_GEMINI_URL: http://extractor-gemini:7070
       EXTRACTOR_AUTH: none
+      # PostgreSQL local (servicio postgres). En Cloud Run se usa Cloud SQL.
+      DB_HOST: postgres
+      DB_USER: app
+      DB_PASSWORD: app
+      DB_NAME: psychometrics
     depends_on:
-      - extractor-vertex
-      - extractor-gemini
+      extractor-vertex:
+        condition: service_started
+      extractor-gemini:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: psychometrics
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d psychometrics"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   frontend:
     build: ./frontend
@@ -64,3 +89,6 @@ services:
       BACKEND_URL: http://localhost:9090
     depends_on:
       - backend
+
+volumes:
+  postgres-data:

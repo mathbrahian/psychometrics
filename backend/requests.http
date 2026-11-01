@@ -56,3 +56,44 @@ POST {{baseUrl}}/v1/questionnaires/extract
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary--
+
+### 7. Guardar un cuestionario (normalmente, el resultado de la extracción)
+# @name saved
+POST {{baseUrl}}/v1/questionnaires
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "proveedor": "gemini",
+  "archivo_origen": "cuestionario.docx",
+  "cuestionario": {
+    "titulo": "Cuestionario de ejemplo",
+    "idioma": "es",
+    "total_items": 1,
+    "items": [
+      {
+        "numero": 1,
+        "enunciado": "¿Qué número completa la serie: 2, 4, 8, 16, …?",
+        "tipo": "seleccion_multiple",
+        "alternativas": [
+          { "valor": "A", "texto": "18" },
+          { "valor": "B", "texto": "24" },
+          { "valor": "C", "texto": "32" }
+        ],
+        "respuesta_correcta": "C"
+      }
+    ]
+  }
+}
+
+### 8. Listar los cuestionarios guardados
+GET {{baseUrl}}/v1/questionnaires
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 9. Ver un cuestionario guardado
+GET {{baseUrl}}/v1/questionnaires/{{saved.response.body.id}}
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 10. Eliminar un cuestionario guardado
+DELETE {{baseUrl}}/v1/questionnaires/{{saved.response.body.id}}
+Authorization: Bearer {{login.response.body.access_token}}

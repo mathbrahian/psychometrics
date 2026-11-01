@@ -23,6 +23,10 @@ La API queda en http://localhost:9090 (Swagger en `/docs`). Con Docker Compose s
 | GET    | `/auth/me` | Usuario autenticado. Requiere `Authorization: Bearer <token>` |
 | POST   | `/v1/questionnaires/extract?proveedor=gemini\|vertex` | Extrae un cuestionario con el extractor elegido (por defecto `gemini`). Requiere sesión. |
 | POST   | `/v1/questionnaires/extract-sheets?proveedor=gemini\|vertex` | Procesa todas las hojas de un Excel. Requiere sesión. |
+| POST   | `/v1/questionnaires` | Guarda un cuestionario: `{"proveedor", "archivo_origen", "cuestionario"}`. Requiere sesión. |
+| GET    | `/v1/questionnaires` | Lista los cuestionarios guardados, sin sus ítems. Requiere sesión. |
+| GET    | `/v1/questionnaires/{id}` | Cuestionario guardado completo. Requiere sesión. |
+| DELETE | `/v1/questionnaires/{id}` | Elimina un cuestionario guardado. Requiere sesión. |
 
 ## Variables de entorno
 
@@ -38,6 +42,13 @@ La API queda en http://localhost:9090 (Swagger en `/docs`). Con Docker Compose s
 | `EXTRACTOR_GEMINI_URL` | vacío | URL de `extractor-gemini`. En local, `http://extractor-gemini:7070`. |
 | `EXTRACTOR_AUTH` | `none` | `id_token` en Cloud Run: envía un token de identidad de Google a los extractores. |
 | `EXTRACTOR_TIMEOUT_SECONDS` | `120` | Tiempo máximo de espera de un extractor. |
+| `DB_HOST`, `DB_PORT` | `localhost`, `5432` | PostgreSQL local. En el compose, `postgres`. |
+| `DB_USER`, `DB_NAME` | `app`, `psychometrics` | Usuario y base de datos. |
+| `DB_PASSWORD` | vacío | Contraseña. En Cloud Run sale de Secret Manager. |
+| `DB_INSTANCE_CONNECTION_NAME` | vacío | En Cloud Run: el `connectionName` de Cloud SQL. Si está definido, se conecta por el socket `/cloudsql/<connectionName>`. |
+| `DATABASE_URL` | vacío | URL completa de SQLAlchemy. Si está definida, reemplaza a las anteriores. |
+
+Al arrancar, el contenedor aplica las migraciones pendientes (`alembic upgrade head`) y después levanta la API.
 
 Si falta alguna de las tres primeras, `/auth/login` responde `503 servicio_no_configurado`.
 

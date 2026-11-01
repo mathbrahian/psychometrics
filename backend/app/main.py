@@ -1,15 +1,21 @@
+import logging
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from questionnaire_core.models.output_schemas import ErrorResponse, Questionnaire, SheetResult
+from sqlalchemy.exc import OperationalError
 
 from app.auth import authenticate, get_current_user
 from app.config import settings
 from app.exceptions import BackendError
-from app.extractors import ExtractorClient, Provider, get_extractor_client
+from app.extractors import ExtractorClient, get_extractor_client
+from app.questionnaires.domain import Provider
+from app.questionnaires.router import router as questionnaires_router
 from app.schemas import CurrentUser, LoginRequest, TokenResponse
+
+logger = logging.getLogger("backend")
 
 app = FastAPI(title="backend")
 
@@ -26,6 +32,13 @@ async def backend_error_handler(_: Request, error: BackendError) -> JSONResponse
     body = ErrorResponse(error=error.code, detail=str(error))
     headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else None
     return JSONResponse(status_code=error.status_code, content=body.model_dump(), headers=headers)
+
+
+@app.exception_handler(OperationalError)
+async def database_error_handler(_: Request, error: OperationalError) -> JSONResponse:
+    logger.error("Error de conexión con la base de datos: %s", error)
+    body = ErrorResponse(error="base_de_datos_no_disponible", detail="La base de datos no está disponible.")
+    return JSONResponse(status_code=503, content=body.model_dump())
 
 
 AUTH_ERRORS = {status: {"model": ErrorResponse} for status in (401, 503)}
@@ -98,3 +111,7 @@ async def extract_questionnaire_sheets(
     Requiere sesión iniciada.
     """
     return await forward_to_extractor("/v1/questionnaires/extract-sheets", file, proveedor, client)
+
+
+# Se registra después de /extract y /extract-sheets para que esas rutas no se confundan con /{questionnaire_id}.
+app.include_router(questionnaires_router)
