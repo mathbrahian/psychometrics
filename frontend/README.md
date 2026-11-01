@@ -27,4 +27,4 @@ La app queda en http://localhost:3000.
 | Variable | Default | Descripción                                                    |
 |----------|---------|----------------------------------------------------------------|
 | `PORT`   | `3000`  | Puerto en el que escucha el servidor. En Cloud Run el servicio se despliega con `--port=3000`. |
-| `EXTRACTOR_VERTEX_URL` | `http://localhost:8080` | URL pública de extractor-vertex. La usa el navegador, no el contenedor. |
+| `BACKEND_URL` | `http://localhost:9090` | URL pública del backend. La usa el navegador, no el contenedor. |

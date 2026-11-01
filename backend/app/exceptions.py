@@ -28,3 +28,18 @@ class ExpiredTokenError(BackendError):
 class AuthNotConfiguredError(BackendError):
     code = "servicio_no_configurado"
     status_code = 503
+
+
+class ExtractorUnavailableError(BackendError):
+    code = "extractor_no_disponible"
+    status_code = 502
+
+
+class ExtractorTimeoutError(BackendError):
+    code = "tiempo_agotado"
+    status_code = 504
+
+
+class ExtractorNotConfiguredError(BackendError):
+    code = "servicio_no_configurado"
+    status_code = 503

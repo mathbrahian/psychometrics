@@ -215,3 +215,203 @@ curl $URL/auth/me -H "Authorization: Bearer $TOKEN"
 - `/auth/me` con un token válido, sin token, vencido, firmado con otra clave, mal formado y sin vencimiento.
 
 También se probó en el contenedor: login incorrecto (401), login correcto (token), `/auth/me` con token (200) y sin token (401).
+
+### Despliegue
+
+El código del paso 2 llega a Cloud Run con el merge a `main`. Antes del merge, el servicio ya tenía los secretos configurados, pero seguía ejecutando la imagen del paso 1, así que `/auth/login` respondía `404`. Es lo esperado: los secretos y el código se despliegan por caminos distintos.
+
+Verificado después del pipeline (los 5 jobs de tests y los 4 despliegues en verde):
+
+| Prueba                          | Respuesta                    |
+|---------------------------------|------------------------------|
+| Login con credenciales falsas   | `401 credenciales_invalidas` |
+| `/auth/me` sin token            | `401 no_autenticado`         |
+| `/auth/me` con un token falso   | `401 token_invalido`         |
+
+Que el login falso responda `credenciales_invalidas` y no `503 servicio_no_configurado` confirma que el servicio lee bien el usuario, el hash y la clave desde Secret Manager.
+
+## Paso 3: el backend consume los extractores
+
+### Endpoints
+
+```
+POST /v1/questionnaires/extract?proveedor=gemini|vertex          → un cuestionario
+POST /v1/questionnaires/extract-sheets?proveedor=gemini|vertex   → un resultado por hoja de Excel
+```
+
+- **Requieren sesión** (`Depends(get_current_user)`). Sin token responden `401` y no se llama al extractor.
+- **El proveedor por defecto es `gemini`.** Un proveedor desconocido responde `422`.
+- **El backend es un intermediario:** reenvía el archivo al extractor y devuelve su respuesta **sin cambios**, con su código HTTP. Los errores del extractor (`415`, `422`, `429`...) llegan tal cual, y la validación no se duplica.
+
+### `ExtractorClient` (`app/extractors.py`)
+
+| Situación                                                  | Respuesta del backend          |
+|------------------------------------------------------------|--------------------------------|
+| El extractor responde (con éxito o con error)              | Su código HTTP y su JSON       |
+| El extractor tarda más de `EXTRACTOR_TIMEOUT_SECONDS` (120 s) | `504 tiempo_agotado`        |
+| No se puede conectar con el extractor                      | `502 extractor_no_disponible`  |
+| Responde algo que no es JSON (por ejemplo, el 403 en HTML de Cloud Run si falta el permiso) | `502 extractor_no_disponible`, con el código HTTP en el detalle |
+| La URL del extractor no está configurada                   | `503 servicio_no_configurado`  |
+
+### Autenticación con los extractores
+
+| Entorno   | URL del extractor                     | Autenticación                                   |
+|-----------|---------------------------------------|-------------------------------------------------|
+| Local     | `http://extractor-gemini:7070` (nombre del servicio del compose) | Ninguna (`EXTRACTOR_AUTH=none`) |
+| Cloud Run | `https://extractor-gemini-<PROJECT_NUMBER>.us-central1.run.app` | Token de identidad de Google (`EXTRACTOR_AUTH=id_token`) |
+
+En Cloud Run, antes de cada llamada, el backend pide a Google un **token de identidad** de su service account (`backend-runtime`) con la URL del extractor como *audience* (`google.oauth2.id_token.fetch_id_token`), y lo envía en `Authorization: Bearer`. Cloud Run verifica ese token y que `backend-runtime` tenga `roles/run.invoker` sobre el extractor. La llamada a Google es síncrona, por eso se ejecuta con `asyncio.to_thread` para no bloquear el servidor.
+
+En local la llamada la hace el contenedor del backend, no el navegador, así que se usa el **nombre del servicio** del compose y no `localhost`.
+
+### Prueba de punta a punta en local
+
+Con el backend y `extractor-gemini` en la misma red Docker, y llamada real a la Gemini API:
+
+| Prueba                                     | Resultado                                  |
+|--------------------------------------------|--------------------------------------------|
+| Extraer sin iniciar sesión                 | `401 no_autenticado`                       |
+| Login y extracción con `proveedor=gemini`  | `200`, idioma `es`, 3 ítems                |
+| Archivo `.doc`                             | `415 formato_invalido`, reenviado del extractor |
+| Extractor no disponible (`vertex` apagado) | `502 extractor_no_disponible`              |
+
+### Tests
+
+`tests/test_extraction.py` (14 tests). Los extractores se simulan con `httpx.MockTransport`:
+
+- sin login, `401`, sin llamar al extractor;
+- `gemini` por defecto, y cada combinación de proveedor y endpoint va a la URL correcta;
+- el archivo se reenvía completo;
+- proveedor desconocido, `422`;
+- los errores del extractor se devuelven sin cambios;
+- tiempo agotado (`504`), extractor caído (`502`), respuesta no JSON (`502`) y extractor sin configurar (`503`);
+- en Cloud Run se envía el token de identidad con la URL del extractor como *audience*; en local no se envía.
+
+## Paso 6, versión en crudo: el frontend usa el backend
+
+Se adelantó una versión mínima del paso 6, para que la app siga funcionando con los extractores cerrados. `frontend/src/App.jsx`:
+
+1. **Formulario de inicio de sesión:** usuario y contraseña contra `POST /auth/login`. El token queda en memoria, y **Cerrar sesión** lo descarta.
+2. **Extracción:** elige el proveedor (Gemini API o Vertex AI) y el modo (un cuestionario o todas las hojas del Excel), sube el archivo con el token y muestra la respuesta en crudo.
+
+La configuración en tiempo de ejecución pasa de `EXTRACTOR_VERTEX_URL` a **`BACKEND_URL`** (`config.js`, `docker-entrypoint.sh`, `vite.config.js`, `Dockerfile` y compose). El frontend ya no conoce las URLs de los extractores.
+
+## Plan: que solo el backend consuma los extractores
+
+**Objetivo:** que nadie, ni el frontend ni alguien con curl o Postman, pueda llamar a `extractor-vertex` ni a `extractor-gemini` directamente. Solo el backend podrá hacerlo, y el backend exige iniciar sesión. Así se elimina el riesgo de que un tercero consuma la cuota o el crédito de Gemini.
+
+### Nivel de cierre elegido: IAM
+
+| Quién llama al extractor                                   | Resultado    |
+|------------------------------------------------------------|--------------|
+| Backend (service account `backend-runtime`, con token de identidad) | ✅ 200 |
+| Frontend desde el navegador                                | ❌ 403       |
+| Cualquier persona con curl o Postman                       | ❌ 403       |
+| El dueño del proyecto con un token de su cuenta (`gcloud auth print-identity-token`) | ✅ 200, acceso de administrador para depurar |
+
+Se descartó por ahora cerrar también la red (`--ingress=internal` en los extractores más Direct VPC egress en el backend). Bloquearía incluso al dueño del proyecto desde afuera, pero exige configurar la VPC y complica la depuración. Se puede agregar después sin cambiar código.
+
+### Orden: 3 → 6 → 5
+
+El orden importa:
+
+- **El backend tiene que saber llamar a los extractores con token (paso 3)** antes de cerrarlos. Si no, al cerrarlos el backend también recibiría 403.
+- **El frontend tiene que pasar a usar el backend (paso 6)** antes de cerrarlos. Si no, la app dejaría de funcionar en cuanto se cierren.
+- **El cierre (paso 5)** va al final, cuando ya nada depende del acceso público.
+
+### Paso 3: el backend llama a los extractores
+
+Código: endpoints protegidos `POST /v1/questionnaires/extract` y `POST /v1/questionnaires/extract-sheets`, con un parámetro `proveedor` (`vertex` o `gemini`). Reenvían el archivo al extractor y, en Cloud Run, envían un token de identidad de Google en cada llamada.
+
+Configuración del servicio `backend`, una sola vez:
+
+```bash
+source .env.gcp
+
+gcloud run services update backend --region=us-central1 --update-env-vars=\
+EXTRACTOR_VERTEX_URL=https://extractor-vertex-$GCP_PROJECT_NUMBER.us-central1.run.app,\
+EXTRACTOR_GEMINI_URL=https://extractor-gemini-$GCP_PROJECT_NUMBER.us-central1.run.app,\
+EXTRACTOR_AUTH=id_token
+```
+
+En local, el compose define las URLs por nombre de servicio (`http://extractor-gemini:7070`) y `EXTRACTOR_AUTH=none`, porque en local no hay tokens de identidad.
+
+Verificar, con el `$TOKEN` del login:
+
+```bash
+URL=https://backend-$GCP_PROJECT_NUMBER.us-central1.run.app
+curl -F "file=@examples/01-tipo-doc/cuestionario.docx" "$URL/v1/questionnaires/extract?proveedor=gemini" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Paso 6: el frontend usa el backend
+
+Código: pantalla de login y llamadas al backend, con el token, en lugar de al extractor.
+
+Configuración del servicio `frontend`, una sola vez. El CORS del backend ya permite las dos URLs del frontend desde el paso 1:
+
+```bash
+gcloud run services update frontend --region=us-central1 \
+  --update-env-vars=BACKEND_URL=https://backend-$GCP_PROJECT_NUMBER.us-central1.run.app
+```
+
+Verificar en el navegador: iniciar sesión, subir un archivo y ver el resultado.
+
+### Paso 5: cerrar los extractores
+
+Se ejecuta **después** de verificar los pasos 3 y 6 en Cloud Run:
+
+```bash
+source .env.gcp
+SA_BACKEND=backend-runtime@$GCP_PROJECT_ID.iam.gserviceaccount.com
+
+for s in extractor-vertex extractor-gemini; do
+  # 1. Solo el backend puede invocar el extractor
+  gcloud run services add-iam-policy-binding $s --region=us-central1 \
+    --member="serviceAccount:$SA_BACKEND" --role=roles/run.invoker
+
+  # 2. Se quita el acceso público
+  gcloud run services remove-iam-policy-binding $s --region=us-central1 \
+    --member=allUsers --role=roles/run.invoker
+done
+```
+
+El orden dentro del bucle evita un corte: primero se da el permiso al backend y después se quita el público.
+
+El pipeline no vuelve a abrir los extractores: `gcloud run deploy` sin `--allow-unauthenticated` conserva los permisos del servicio.
+
+Verificar (el cambio de permisos puede tardar uno o dos minutos):
+
+```bash
+for s in extractor-vertex extractor-gemini; do
+  U=https://$s-$GCP_PROJECT_NUMBER.us-central1.run.app
+
+  # Sin token: debe responder 403
+  echo "$s sin token: $(curl -s -o /dev/null -w '%{http_code}' $U/health)"
+
+  # Con un token de la cuenta del dueño del proyecto: debe responder 200
+  echo "$s con token de administrador: $(curl -s -o /dev/null -w '%{http_code}' \
+    -H "Authorization: Bearer $(gcloud auth print-identity-token)" $U/health)"
+done
+
+# A través del backend: debe seguir funcionando
+curl -F "file=@examples/01-tipo-doc/cuestionario.docx" "$URL/v1/questionnaires/extract?proveedor=gemini" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Opcional, una vez cerrados: los extractores ya no reciben llamadas del navegador, así que su `CORS_ORIGINS` deja de ser necesario.
+
+```bash
+for s in extractor-vertex extractor-gemini; do
+  gcloud run services update $s --region=us-central1 --remove-env-vars=CORS_ORIGINS
+done
+```
+
+### Volver atrás
+
+Si algo falla después de cerrarlos, se vuelve a abrir un extractor con un comando:
+
+```bash
+gcloud run services add-iam-policy-binding extractor-gemini --region=us-central1 \
+  --member=allUsers --role=roles/run.invoker
+```

@@ -21,6 +21,8 @@ La API queda en http://localhost:9090 (Swagger en `/docs`). Con Docker Compose s
 | GET    | `/health` | Estado del servicio |
 | POST   | `/auth/login` | Recibe `{"usuario", "contrasena"}` y devuelve un JWT (`access_token`) |
 | GET    | `/auth/me` | Usuario autenticado. Requiere `Authorization: Bearer <token>` |
+| POST   | `/v1/questionnaires/extract?proveedor=gemini\|vertex` | Extrae un cuestionario con el extractor elegido (por defecto `gemini`). Requiere sesión. |
+| POST   | `/v1/questionnaires/extract-sheets?proveedor=gemini\|vertex` | Procesa todas las hojas de un Excel. Requiere sesión. |
 
 ## Variables de entorno
 
@@ -32,8 +34,14 @@ La API queda en http://localhost:9090 (Swagger en `/docs`). Con Docker Compose s
 | `AUTH_PASSWORD_HASH` | vacío | Hash argon2 de la contraseña. En Cloud Run sale de Secret Manager. |
 | `JWT_SECRET`   | vacío   | Clave para firmar los tokens. En Cloud Run sale de Secret Manager. |
 | `JWT_EXPIRE_MINUTES` | `480` | Duración del token (8 horas).                              |
+| `EXTRACTOR_VERTEX_URL` | vacío | URL de `extractor-vertex`. En local, `http://extractor-vertex:8080`. |
+| `EXTRACTOR_GEMINI_URL` | vacío | URL de `extractor-gemini`. En local, `http://extractor-gemini:7070`. |
+| `EXTRACTOR_AUTH` | `none` | `id_token` en Cloud Run: envía un token de identidad de Google a los extractores. |
+| `EXTRACTOR_TIMEOUT_SECONDS` | `120` | Tiempo máximo de espera de un extractor. |
 
 Si falta alguna de las tres primeras, `/auth/login` responde `503 servicio_no_configurado`.
+
+Peticiones de ejemplo en [`requests.http`](requests.http) (REST Client de VS Code).
 
 Para generar el hash y la clave (la contraseña se pide de forma oculta):
 
