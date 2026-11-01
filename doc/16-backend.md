@@ -303,6 +303,33 @@ El cuestionario se muestra con `frontend/src/QuestionnaireView.jsx`, en HTML pla
 
 La descarga se genera en el navegador (`Blob` y un enlace temporal), sin otra llamada al backend.
 
+### Manejo de errores en la UI
+
+La prueba pide **informar** si no se detectan ítems, si el formato es inválido o si ocurre un error. Antes, el error solo quedaba en la respuesta en crudo, plegada. Ahora cada acción muestra un mensaje visible:
+
+- **Error** (`role="alert"`, precedido de **Error:**): aparece arriba, tanto en el inicio de sesión como en la app. Todavía sin estilos.
+- **Confirmación** (`role="status"`): por ejemplo *"Cuestionario detectado: 12 ítems."*, *"Cuestionario guardado."* o *"Cuestionario eliminado."*
+- **Procesando:** mientras se extrae, *"Procesando... la extracción puede tardar hasta 30 segundos."*
+
+`frontend/src/errors.js` convierte cada respuesta en un mensaje:
+
+| Respuesta                                              | Mensaje                                                           |
+|--------------------------------------------------------|-------------------------------------------------------------------|
+| `{ "error", "detalle" }` del backend o de un extractor | El `detalle`, que ya está escrito para el usuario: *"El formato '.doc' no está soportado."*, *"No se detectaron ítems en el documento."*, *"Usuario o contraseña incorrectos."* |
+| `422` de validación de FastAPI (`{ "detail": [...] }`) | *"Los datos enviados no son válidos. Revise: proveedor."*         |
+| Respuesta sin JSON (por ejemplo, un `502` en HTML)     | Un mensaje según el código HTTP                                   |
+| Sin conexión con el backend                            | *"No se pudo conectar con el servidor. Revise su conexión o intente más tarde."* |
+
+**Validación en el navegador antes de subir el archivo:** extensión según la opción (`.pdf`, `.docx` y `.xlsx` para un cuestionario; solo `.xlsx` para todas las hojas), archivo vacío y tamaño máximo de 10 MB. Así se avisa al instante, sin esperar al servidor. El backend vuelve a validar igual, porque la validación del navegador se puede saltar.
+
+**Casos particulares:**
+
+- **Sesión vencida:** con un `401` en medio de la sesión, se vuelve al inicio de sesión y el mensaje *"La sesión venció. Inicie sesión de nuevo."* se mantiene visible.
+- **Excel por hojas:** si algunas hojas fallan, se informa cuántas, y el detalle de cada una aparece junto a su resultado. Si fallan todas, se muestra como error.
+- **Guardar varias hojas:** si alguna no se puede guardar, se indica cuántas se guardaron de cuántas.
+
+Se verificó la lógica de `errors.js` en Node con los casos de la tabla y con la validación de archivos (`.doc`, `.pdf` en la opción de hojas, archivo vacío, archivo de más de 10 MB y un `.XLSX` válido).
+
 La configuración en tiempo de ejecución pasó de `EXTRACTOR_VERTEX_URL` a **`BACKEND_URL`** (`config.js`, `docker-entrypoint.sh`, `vite.config.js`, `Dockerfile` y compose). El frontend ya no conoce las URLs de los extractores.
 
 ## Paso 4: base de datos en Cloud SQL
