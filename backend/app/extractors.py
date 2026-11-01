@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from enum import Enum
 
 import google.auth.transport.requests
 import google.oauth2.id_token
@@ -8,15 +7,9 @@ import httpx
 
 from app.config import Settings, settings
 from app.exceptions import ExtractorNotConfiguredError, ExtractorTimeoutError, ExtractorUnavailableError
+from app.questionnaires.domain import Provider
 
 logger = logging.getLogger("backend")
-
-
-class Provider(str, Enum):
-    """Extractor que procesa el cuestionario."""
-
-    VERTEX = "vertex"
-    GEMINI = "gemini"
 
 
 def fetch_id_token(audience: str) -> str:

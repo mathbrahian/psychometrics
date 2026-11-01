@@ -18,13 +18,13 @@ Cada paso se sube por separado, para que quede la trazabilidad en el historial.
 | 1 | **Hola mundo nativo de nube:** FastAPI dockerizado, Docker Compose, CI y Cloud Run. |
 | 2 | **Inicio de sesión:** `POST /auth/login` devuelve un JWT; `GET /auth/me` es la primera ruta protegida. Un solo usuario, con la contraseña guardada como hash y los secretos en Secret Manager. |
 | 3 | **Consumir los extractores:** `POST /v1/questionnaires/extract`, protegido, llama a `extractor-vertex` o `extractor-gemini` con un token de identidad de Google. |
-| 4 | **Guardar, listar y eliminar cuestionarios**, con capas de DDD (dominio, casos de uso, repositorio, API) y Firestore como base de datos. |
+| 4 | **Guardar, listar y eliminar cuestionarios**, con capas de DDD (dominio, casos de uso, repositorio, API) y PostgreSQL en Cloud SQL. |
 | 5 | **Cerrar los extractores:** sin acceso público; solo los invoca la service account del backend. |
 | 6 | **Frontend:** login, extracción a través del backend y lista de cuestionarios guardados. |
 
 ### Decisiones previas
 
-- **Base de datos: Firestore** (se usa en el paso 4). Tiene capa gratuita y no cuesta nada sin uso; es serverless, así que no necesita conexiones ni VPC desde Cloud Run, y tiene emulador oficial para local. Cloud SQL cuesta unos USD 10 al mes como mínimo aunque no se use. Con la capa de repositorio, cambiar de base de datos no afectaría al dominio.
+- **Base de datos: Cloud SQL con PostgreSQL** (se usa en el paso 4). En un principio se eligió Firestore por costo, pero se cambió a PostgreSQL (ver la decisión en el paso 4).
 - **Puerto: 9090.** Cada servicio tiene el suyo, igual en todos los entornos: frontend 3000, `extractor-vertex` 8080, `extractor-gemini` 7070 y backend 9090.
 - **Librería compartida:** el backend instala `libs/questionnaire-core` desde el paso 1, para reutilizar en el paso 4 los modelos `Questionnaire` e `Item` sin definirlos otra vez.
 
@@ -295,6 +295,203 @@ Se adelantó una versión mínima del paso 6, para que la app siga funcionando c
 2. **Extracción:** elige el proveedor (Gemini API o Vertex AI) y el modo (un cuestionario o todas las hojas del Excel), sube el archivo con el token y muestra la respuesta en crudo.
 
 La configuración en tiempo de ejecución pasa de `EXTRACTOR_VERTEX_URL` a **`BACKEND_URL`** (`config.js`, `docker-entrypoint.sh`, `vite.config.js`, `Dockerfile` y compose). El frontend ya no conoce las URLs de los extractores.
+
+## Paso 4: base de datos en Cloud SQL
+
+### Decisión: PostgreSQL en lugar de Firestore
+
+| | Cloud SQL (PostgreSQL) | Firestore |
+|---|---|---|
+| Costo | ~USD 10 al mes encendida; centavos detenida | Gratis en este volumen |
+| Configuración | Instancia, base, usuario y conexión | Casi ninguna |
+| Qué muestra | SQL, ORM (SQLAlchemy), migraciones (Alembic), transacciones, DDD con repositorio | NoSQL serverless |
+
+Se eligió **PostgreSQL** porque la prueba es para *Backend Developer Python* y el stack relacional es lo que se espera ver en un backend. Firestore ganaba en costo y simplicidad, y el costo se controla deteniendo la instancia cuando no se usa.
+
+El cuestionario es un documento anidado (ítems con alternativas). Se guarda **completo en una columna JSONB**, y aparte, en columnas normales, los datos que se listan o filtran (título, idioma, cantidad de ítems, proveedor, archivo de origen y fecha). No se normalizan los ítems en tablas separadas: se guarda el resultado tal como sale del extractor.
+
+### Instancia
+
+La configuración más barata:
+
+| Opción | Valor | Motivo |
+|---|---|---|
+| Motor | PostgreSQL 17 | |
+| Edición | `ENTERPRISE` | *Enterprise Plus* no permite núcleo compartido y es mucho más cara |
+| Tipo | `db-f1-micro` | Núcleo compartido, el más barato |
+| Disco | HDD, 10 GB, sin crecimiento automático | El mínimo |
+| Disponibilidad | Una sola zona | Sin alta disponibilidad |
+| Backups | Desactivados | Datos inventados; en producción se activarían |
+
+```bash
+source .env.gcp
+
+gcloud services enable sqladmin.googleapis.com
+
+gcloud sql instances create psychometrics-db \
+  --database-version=POSTGRES_17 \
+  --edition=ENTERPRISE \
+  --tier=db-f1-micro \
+  --region=us-central1 \
+  --availability-type=zonal \
+  --storage-type=HDD \
+  --storage-size=10GB \
+  --no-storage-auto-increase \
+  --no-backup
+
+gcloud sql databases create psychometrics --instance=psychometrics-db
+```
+
+### Usuario de la aplicación
+
+La contraseña se genera aleatoria y va **directo a Secret Manager**: no aparece en pantalla, en archivos ni en el historial.
+
+```bash
+DB_PASS=$(openssl rand -base64 32 | tr -d '\n/+=')
+gcloud sql users create app --instance=psychometrics-db --password="$DB_PASS"
+printf '%s' "$DB_PASS" | gcloud secrets create backend-db-password --data-file=-
+unset DB_PASS
+```
+
+### Permisos de `backend-runtime`
+
+```bash
+SA_BACKEND=backend-runtime@$GCP_PROJECT_ID.iam.gserviceaccount.com
+
+gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
+  --member="serviceAccount:$SA_BACKEND" --role=roles/cloudsql.client --condition=None
+
+gcloud secrets add-iam-policy-binding backend-db-password \
+  --member="serviceAccount:$SA_BACKEND" --role=roles/secretmanager.secretAccessor
+```
+
+`roles/cloudsql.client` permite conectarse a la instancia; la contraseña se lee solo de su secreto.
+
+### Conexión
+
+- **Cloud Run:** el backend se conecta con `--add-cloudsql-instances`, que monta un socket Unix seguro en `/cloudsql/<connectionName>`. No hace falta abrir la IP pública ni configurar una VPC.
+- **Red:** la instancia tiene IP pública, pero **sin redes autorizadas**, así que nadie puede conectarse directamente. Para administrarla desde la máquina local se usa el Cloud SQL Auth Proxy.
+- **Local:** Docker Compose levanta su propio PostgreSQL. En desarrollo no se usa la instancia de la nube ni se paga por ella.
+
+### Verificar
+
+```bash
+gcloud sql instances describe psychometrics-db --format="value(state,settings.tier,connectionName)"
+gcloud secrets versions list backend-db-password
+```
+
+### Detener y encender
+
+Detenida, la instancia solo cobra el disco (centavos al mes):
+
+```bash
+gcloud sql instances patch psychometrics-db --activation-policy=NEVER    # detener
+gcloud sql instances patch psychometrics-db --activation-policy=ALWAYS   # encender
+```
+
+### Código: capas de DDD
+
+```
+backend/app/questionnaires/
+├── domain.py           # Dominio: entidad SavedQuestionnaire y contrato QuestionnaireRepository
+├── service.py          # Aplicación: casos de uso (guardar, listar, ver, eliminar)
+├── sql_repository.py   # Infraestructura: tabla QuestionnaireRow y repositorio con SQLAlchemy
+├── schemas.py          # API: entrada y salida en español (alias de Pydantic)
+└── router.py           # API: endpoints protegidos
+backend/app/db.py       # Engine y sesión de SQLAlchemy
+backend/migrations/     # Alembic
+```
+
+| Capa              | Depende de                  | No sabe de                       |
+|-------------------|-----------------------------|----------------------------------|
+| Dominio           | `questionnaire_core` (el modelo `Questionnaire`) | FastAPI, SQLAlchemy, la base de datos |
+| Aplicación        | Dominio                     | FastAPI, SQLAlchemy              |
+| Infraestructura   | Dominio, SQLAlchemy         | FastAPI                          |
+| API               | Aplicación, infraestructura | —                                |
+
+- **El dominio define el contrato** del repositorio (`QuestionnaireRepository`, un `Protocol`) y la infraestructura lo implementa. Cambiar de base de datos solo afectaría a `sql_repository.py`.
+- **La entidad** `SavedQuestionnaire` guarda el `Questionnaire` de la librería compartida, el proveedor y el archivo de origen. Título, idioma y cantidad de ítems se **derivan** del cuestionario, así que no pueden quedar desincronizados.
+- **`Provider`** (`vertex` o `gemini`) se define una sola vez en el dominio y lo usan también los endpoints de extracción.
+
+### Endpoints
+
+Todos requieren sesión iniciada.
+
+| Método | Ruta                       | Respuesta |
+|--------|----------------------------|-----------|
+| POST   | `/v1/questionnaires`       | `201` con el cuestionario guardado |
+| GET    | `/v1/questionnaires`       | `200` con la lista, del más reciente al más antiguo, **sin ítems** |
+| GET    | `/v1/questionnaires/{id}`  | `200` con el cuestionario completo, o `404 cuestionario_no_encontrado` |
+| DELETE | `/v1/questionnaires/{id}`  | `204`, o `404 cuestionario_no_encontrado` |
+
+```json
+POST /v1/questionnaires
+{ "proveedor": "gemini", "archivo_origen": "cuestionario.docx", "cuestionario": { "titulo": "...", "idioma": "es", "total_items": 3, "items": [...] } }
+
+→ 201
+{ "id": "...", "titulo": "...", "idioma": "es", "total_items": 3, "proveedor": "gemini",
+  "archivo_origen": "cuestionario.docx", "creado_en": "2026-11-01T...", "cuestionario": { ... } }
+```
+
+El cuestionario recibido se valida con el mismo esquema de la librería compartida, así que no se puede guardar un JSON que no cumpla el formato de la prueba (`422`).
+
+Si la base de datos no responde, los endpoints devuelven `503 base_de_datos_no_disponible`.
+
+### Tabla y migraciones
+
+`QuestionnaireRow` usa `JSON().with_variant(JSONB(), "postgresql")`: **JSONB** en PostgreSQL y JSON genérico en otros motores. Así los tests corren sobre SQLite en memoria, que es rápido y no necesita servidor, y la base real usa JSONB.
+
+Las migraciones se manejan con **Alembic**. La primera (`0001_create_questionnaires`) crea la tabla y un índice por `created_at`, que es el orden de la lista. La URL de conexión no está en `alembic.ini`: sale de `app.config`, igual que en la API.
+
+**El contenedor aplica las migraciones al arrancar** (`alembic upgrade head && uvicorn ...`). Si ya están aplicadas, no hace nada. Con una sola instancia es suficiente; con muchas instancias arrancando a la vez convendría moverlas a un Cloud Run Job.
+
+**Problema encontrado:** la primera vez, el contenedor no arrancó con *"No module named 'app'"*. El comando `alembic` no agrega la carpeta actual al `sys.path`, así que `migrations/env.py` no encontraba el paquete. Se resolvió con `prepend_sys_path = .` en `alembic.ini`.
+
+### Conexión
+
+| Entorno   | Cómo se conecta                                         | Variables |
+|-----------|---------------------------------------------------------|-----------|
+| Local     | Contenedor `postgres:17-alpine` del compose, por TCP    | `DB_HOST=postgres`, `DB_PASSWORD=app` |
+| Cloud Run | Cloud SQL por socket Unix (`/cloudsql/<connectionName>`) | `DB_INSTANCE_CONNECTION_NAME`, `DB_PASSWORD` desde Secret Manager |
+
+En el compose, el backend espera a que PostgreSQL esté listo (`healthcheck` con `pg_isready`). Los datos locales viven en el volumen `postgres-data`. En modo desarrollo también se monta `backend/migrations`.
+
+### Configuración en Cloud Run
+
+**Debe hacerse antes del merge.** El contenedor aplica las migraciones al arrancar: sin la configuración de la base, no arranca, y el despliegue falla (Cloud Run mantiene la versión anterior).
+
+```bash
+source .env.gcp
+CONN=$(gcloud sql instances describe psychometrics-db --format="value(connectionName)")
+
+gcloud run services update backend --region=us-central1 \
+  --add-cloudsql-instances=$CONN \
+  --update-env-vars=DB_INSTANCE_CONNECTION_NAME=$CONN,DB_USER=app,DB_NAME=psychometrics \
+  --update-secrets=DB_PASSWORD=backend-db-password:latest
+```
+
+Se usa **`--update-secrets`** y no `--set-secrets`: `--set-secrets` reemplazaría todos los secretos del servicio y borraría `AUTH_PASSWORD_HASH` y `JWT_SECRET`.
+
+Mientras se ejecuta este `update`, el servicio todavía corre la imagen anterior, que no usa la base: el cambio no afecta nada hasta el merge.
+
+### Verificación
+
+En local, contra PostgreSQL 17 real:
+
+| Prueba                          | Resultado                                         |
+|---------------------------------|---------------------------------------------------|
+| Arranque                        | Alembic aplica `0001`; luego arranca la API       |
+| Guardar el caso `03-tipo-pdf`   | `201`, 12 ítems                                   |
+| Listar                          | Un elemento, sin ítems                            |
+| Ver                             | El cuestionario es igual al JSON original         |
+| Eliminar                        | `204`; la lista queda vacía                       |
+| Tipos en PostgreSQL             | `content: jsonb`, `id: uuid`, `created_at: timestamptz` |
+| Reinicio del contenedor         | No vuelve a migrar                                |
+
+### Tests
+
+- `tests/test_questionnaires.py` (14 tests): guardar, listar ordenado y sin ítems, ver, eliminar, `404` con un id desconocido, `422` con un id inválido, con un cuestionario inválido o con un proveedor desconocido, y `401` en todos los endpoints sin sesión. Usan SQLite en memoria.
+- `tests/test_migrations.py`: la migración crea la tabla con sus columnas y el `downgrade` la elimina.
 
 ## Plan: que solo el backend consuma los extractores
 
