@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BACKEND_URL } from './config.js'
+import { NETWORK_ERROR, errorMessage, validateFile } from './errors.js'
 import QuestionnaireView from './QuestionnaireView.jsx'
 
 // Versión plana: todas las funciones de la app, en HTML sin estilos. El diseño se hará después.
@@ -13,7 +14,11 @@ function App() {
   // Cambiar la key del input de archivo lo vuelve a crear vacío: es la forma de limpiarlo en React.
   const [fileInputKey, setFileInputKey] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [extracting, setExtracting] = useState(false)
   const [log, setLog] = useState('')
+  // Mensajes visibles: error de la última acción o confirmación de que salió bien.
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [extraction, setExtraction] = useState(null)
   const [saved, setSaved] = useState([])
   const [selected, setSelected] = useState(null)
@@ -25,18 +30,36 @@ function App() {
 
   async function request(path, options = {}) {
     setLoading(true)
+    setError('')
+    setNotice('')
     try {
       const headers = { ...(options.headers ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }
       const response = await fetch(`${BACKEND_URL}${path}`, { ...options, headers })
-      const data = response.status === 204 ? null : await response.json()
+      const data = await readBody(response)
       setLog(`${options.method ?? 'GET'} ${path} → HTTP ${response.status}\n\n${JSON.stringify(data, null, 2)}`)
-      if (response.status === 401 && token) setToken('')
+      if (!response.ok) {
+        setError(errorMessage(response.status, data))
+        // Si la sesión venció, se vuelve al inicio de sesión (el mensaje de error se mantiene).
+        if (response.status === 401 && token) setToken('')
+      }
       return { ok: response.ok, data }
-    } catch (error) {
-      setLog(`No se pudo conectar con el backend (${BACKEND_URL}): ${error.message}`)
+    } catch (exception) {
+      setLog(`No se pudo conectar con el backend (${BACKEND_URL}): ${exception.message}`)
+      setError(NETWORK_ERROR)
       return { ok: false, data: null }
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Algunas respuestas no traen JSON: un 204, o un error de la infraestructura en HTML.
+  async function readBody(response) {
+    if (response.status === 204) return null
+    const text = await response.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      return { texto: text.slice(0, 500) }
     }
   }
 
@@ -59,6 +82,8 @@ function App() {
     setFileInputKey((key) => key + 1)
     setExtraction(null)
     setLog('')
+    setError('')
+    setNotice('')
   }
 
   function logout() {
@@ -67,19 +92,38 @@ function App() {
     setSaved([])
     setSelected(null)
     setLog('')
+    setError('')
+    setNotice('')
   }
 
   async function handleExtract(event) {
     event.preventDefault()
     if (!file) return
+    setExtraction(null)
+    const invalid = validateFile(file, endpoint)
+    if (invalid) {
+      setError(invalid)
+      setNotice('')
+      return
+    }
     const formData = new FormData()
     formData.append('file', file)
-    setExtraction(null)
+    setExtracting(true)
     const { ok, data } = await request(`/v1/questionnaires/${endpoint}?proveedor=${provider}`, {
       method: 'POST',
       body: formData,
     })
-    if (ok) setExtraction({ endpoint, provider, filename: file.name, data })
+    setExtracting(false)
+    if (!ok) return
+    setExtraction({ endpoint, provider, filename: file.name, data })
+    if (endpoint === 'extract') {
+      setNotice(`Cuestionario detectado: ${data.total_items} ítems.`)
+    } else {
+      const failed = data.filter((sheet) => sheet.error).length
+      const message = `Se procesaron ${data.length} hojas.`
+      if (failed === data.length) setError(`${message} Ninguna se pudo extraer; vea el detalle de cada hoja.`)
+      else setNotice(failed ? `${message} ${failed} con error; vea el detalle abajo.` : message)
+    }
   }
 
   // Un resultado de /extract es un cuestionario; uno de /extract-sheets, una lista de hojas.
@@ -92,14 +136,24 @@ function App() {
   }
 
   async function saveExtraction() {
-    for (const { name, questionnaire } of extractedQuestionnaires()) {
-      await request('/v1/questionnaires', {
+    const questionnaires = extractedQuestionnaires()
+    let savedCount = 0
+    for (const { name, questionnaire } of questionnaires) {
+      const { ok } = await request('/v1/questionnaires', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proveedor: extraction.provider, archivo_origen: name, cuestionario: questionnaire }),
       })
+      if (!ok) break
+      savedCount += 1
     }
+    if (savedCount === 0) return
     await loadSaved()
+    if (savedCount === questionnaires.length) {
+      setNotice(savedCount === 1 ? 'Cuestionario guardado.' : `Se guardaron ${savedCount} cuestionarios.`)
+    } else {
+      setError(`Se guardaron ${savedCount} de ${questionnaires.length} cuestionarios; los demás no se pudieron guardar.`)
+    }
   }
 
   async function loadSaved() {
@@ -117,6 +171,7 @@ function App() {
     if (ok) {
       if (selected?.id === id) setSelected(null)
       await loadSaved()
+      setNotice('Cuestionario eliminado.')
     }
   }
 
@@ -131,6 +186,17 @@ function App() {
   }
 
   const baseName = (filename) => filename.replace(/\.[^.]+$/, '')
+
+  const messages = (
+    <>
+      {error && (
+        <p role="alert">
+          <strong>Error:</strong> {error}
+        </p>
+      )}
+      {notice && <p role="status">{notice}</p>}
+    </>
+  )
 
   if (!token) {
     return (
@@ -148,7 +214,7 @@ function App() {
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
         </form>
-        <pre>{log}</pre>
+        {messages}
       </>
     )
   }
@@ -157,6 +223,7 @@ function App() {
     <>
       <h1>Extractor de cuestionarios</h1>
       <button onClick={logout}>Cerrar sesión</button>
+      {messages}
 
       <h2>Extraer</h2>
       <form onSubmit={handleExtract}>
@@ -181,6 +248,7 @@ function App() {
           Limpiar
         </button>
       </form>
+      {extracting && <p role="status">Procesando... la extracción puede tardar hasta 30 segundos.</p>}
       {extraction && (
         <>
           <h2>Cuestionario detectado</h2>
