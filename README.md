@@ -4,6 +4,8 @@ Giunti Psychometrics está llevando sus cuestionarios y pruebas de evaluación e
 
 **psychometrics** es una aplicación web que recibe un cuestionario en PDF, Word (`.docx`) o Excel (`.xlsx`) y devuelve automáticamente sus ítems, tipos, alternativas y respuestas correctas en un JSON estandarizado.
 
+> 🎬 **Video final con el recorrido por la solución:** https://www.youtube.com/watch?v=d8_PQ-Wib1s
+
 ## Aplicación desplegada
 
 | | URL |
@@ -338,4 +340,4 @@ El proyecto se construyó por etapas, cada una en su rama. Cada etapa tiene su d
 | 16 | Backend y base de datos | [16-backend](doc/16-backend.md) | [Inicio de sesión](doc/16-backend.md#paso-2-inicio-de-sesión-de-un-solo-usuario), [consumo de los extractores](doc/16-backend.md#paso-3-el-backend-consume-los-extractores), [Cloud SQL](doc/16-backend.md#paso-4-base-de-datos-en-cloud-sql), [extractores privados](doc/16-backend.md#plan-que-solo-el-backend-consuma-los-extractores), [frontend en crudo](doc/16-backend.md#paso-6-el-frontend-usa-el-backend) | [video 7](https://youtu.be/XE60ctTc6mQ), [video 8](https://youtu.be/SLykm3qkLLs) |
 | 21 | Frontend final | [21-frontend-advanced](doc/21-frontend-advanced.md) | [Funciones](doc/21-frontend-advanced.md#funciones), [diseño solo con CSS](doc/21-frontend-advanced.md#diseño-solo-con-css), [manejo de errores en la UI](doc/21-frontend-advanced.md#manejo-de-errores-en-la-ui) | [video 9](https://youtu.be/HHIYMdQgaWQ), [video 10](https://www.youtube.com/watch?v=7phXoXy2F5g) |
 
-Listado completo de los videos, con lo que muestra cada uno: [doc/videos.md](doc/videos.md).
+Todos los videos en orden: [lista de reproducción en YouTube](https://www.youtube.com/playlist?list=PLFASCKITNB-c). Lo que muestra cada uno: [doc/videos.md](doc/videos.md).
