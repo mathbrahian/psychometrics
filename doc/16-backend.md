@@ -289,7 +289,7 @@ Con el backend y `extractor-gemini` en la misma red Docker, y llamada real a la 
 
 ## Paso 6, versión en crudo: el frontend usa el backend
 
-El frontend se hace primero **plano**: todas las funciones de la app en HTML sin colores ni CSS, para comprobar el flujo completo. El diseño se hará después, sobre esta base. `frontend/src/App.jsx`:
+El frontend se hizo primero **plano**, con todas las funciones de la app en HTML sin colores ni CSS, para comprobar el flujo completo; después se le agregó el diseño (ver más abajo). `frontend/src/App.jsx`:
 
 | Sección | Qué hace | Endpoint del backend |
 |---|---|---|
@@ -297,11 +297,27 @@ El frontend se hace primero **plano**: todas las funciones de la app en HTML sin
 | Extraer | Proveedor (Gemini API o Vertex AI), modo (un cuestionario o todas las hojas del Excel) y archivo. **Limpiar** borra la consulta actual: el archivo elegido, el cuestionario detectado y la última respuesta. | `POST /v1/questionnaires/extract` o `/extract-sheets` |
 | Cuestionario detectado | El cuestionario en pantalla, **Descargar JSON** (requisito de la prueba) y **Guardar**. De un Excel por hojas se muestra y se guarda un cuestionario por cada hoja procesada con éxito, y se listan los errores de las demás. | `POST /v1/questionnaires` |
 | Cuestionarios guardados | Lista con título, idioma, ítems, proveedor, archivo y fecha, que se carga al iniciar sesión. **Ver** muestra el cuestionario en pantalla, con **Descargar JSON**, **Eliminar** y **Cerrar**. | `GET`, `GET /{id}` y `DELETE /{id}` |
-| Última respuesta del backend | Plegada (`<details>`): método, ruta, código HTTP y JSON de la última llamada, para depurar. | |
 
 El cuestionario se muestra con `frontend/src/QuestionnaireView.jsx`, en HTML plano: título, idioma y cantidad de ítems; y por cada ítem, su enunciado, su tipo, sus alternativas y la respuesta correcta, si el documento la indica. El mismo componente sirve para el resultado de la extracción y para un cuestionario guardado. Se verificó renderizándolo con el resultado del caso `03-tipo-pdf`, que incluye los 5 tipos de ítem.
 
 La descarga se genera en el navegador (`Blob` y un enlace temporal), sin otra llamada al backend.
+
+### Diseño solo con CSS
+
+Sobre la versión plana se agregó el diseño, **sin librerías de componentes ni frameworks de CSS**: un solo archivo, `frontend/src/styles.css`, con variables de CSS para la paleta.
+
+- **Tipografía Poppins** (Google Fonts) y **paleta violeta**: banda principal con degradado, tarjetas blancas con sombra suave y botones primarios violeta.
+- **Barra superior** con el nombre de la app, **psychometrics**, el usuario y **Cerrar sesión**.
+- **Extracción:** selectores segmentados para el modelo (Gemini API o Vertex AI) y el modo (un cuestionario o todas las hojas), y una **zona para arrastrar y soltar** el archivo, que también se abre con un clic.
+- **Cuestionario:** cada ítem en una tarjeta numerada, con su tipo como etiqueta y la **respuesta correcta resaltada en verde** con un ✓.
+- **Cuestionarios guardados:** lista con etiquetas (ítems, idioma, proveedor, archivo y fecha). **Ver** abre un **modal**: se cierra con **Cerrar**, con la tecla Escape o con un clic fuera de él; solo el contenido se desplaza, y el encabezado y los botones quedan siempre a la vista.
+- **Carga:**
+  - cada botón muestra un spinner mientras su acción está en curso (iniciar sesión, extraer, guardar, actualizar, ver y eliminar);
+  - mientras se extrae, un panel con spinner, el modelo que se está usando, una barra de progreso indeterminada y un esqueleto animado del resultado.
+- **Mensajes:** errores en un recuadro rojo y confirmaciones en uno verde.
+- **Diseño adaptable:** en pantallas angostas, la lista de guardados pasa a una sola columna.
+
+El panel de depuración con la respuesta en crudo del backend se quitó: ya no hace falta, porque los errores se muestran en la interfaz.
 
 ### Manejo de errores en la UI
 
