@@ -67,12 +67,13 @@ Los errores se devuelven siempre con el mismo formato, y la interfaz los muestra
 
 ## Arquitectura
 
-```
-navegador ──▶ frontend (React) ──▶ backend (FastAPI) ──┬──▶ extractor-gemini (FastAPI) ──▶ Gemini API
-                                         │             └──▶ extractor-vertex (FastAPI) ──▶ Vertex AI
-                                         ▼
-                                Cloud SQL (PostgreSQL)
-```
+![Diagrama de despliegue en Google Cloud](doc/img/diagrama-despliegue.svg)
+
+- El **frontend** se sirve desde Cloud Run; el navegador del usuario llama al **backend** con un token JWT.
+- El **backend** guarda los cuestionarios en **Cloud SQL** (PostgreSQL), conectado por el socket de Cloud SQL, e invoca a los **extractores** con un token de identidad de Google (🔑).
+- Los **extractores** son privados: solo el backend puede invocarlos. `extractor-vertex` usa **Vertex AI**, dentro del proyecto de GCP, con la identidad de su service account; `extractor-gemini` usa la **Gemini API de Google AI Studio**, fuera del proyecto, con una API key guardada en Secret Manager.
+
+Diagrama editable con [draw.io](https://app.diagrams.net): [`doc/img/diagrama-despliegue.svg`](doc/img/diagrama-despliegue.svg).
 
 | Servicio           | Puerto | Qué hace |
 |--------------------|--------|----------|

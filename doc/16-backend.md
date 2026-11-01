@@ -9,6 +9,22 @@ Se construye un backend pequeño, para **un solo usuario**, que pueda:
 
 Además, el backend resuelve un riesgo que hoy existe: los extractores son públicos y cada llamada a Gemini tiene costo. Cuando el backend esté listo, solo él podrá invocarlos, y el acceso quedará protegido por usuario y contraseña.
 
+## Arquitectura final
+
+Así queda la solución desplegada al terminar esta etapa:
+
+![Diagrama de despliegue en Google Cloud](img/diagrama-despliegue.svg)
+
+| Conexión | Autenticación |
+|---|---|
+| Navegador → backend | Token JWT del inicio de sesión (paso 2) |
+| Backend → extractores | Token de identidad de Google de `backend-runtime`, con `roles/run.invoker` (pasos 3 y 5) |
+| Backend → Cloud SQL | Socket de Cloud SQL, con `roles/cloudsql.client` y la contraseña desde Secret Manager (paso 4) |
+| `extractor-vertex` → Vertex AI | Service account `extractor-vertex-runtime`, con `roles/aiplatform.user` |
+| `extractor-gemini` → Gemini API (AI Studio) | API key desde Secret Manager |
+
+El diagrama es un SVG de draw.io con el diagrama editable incluido: se puede abrir en https://app.diagrams.net para modificarlo.
+
 ## Plan por pasos
 
 Cada paso se sube por separado, para que quede la trazabilidad en el historial.
