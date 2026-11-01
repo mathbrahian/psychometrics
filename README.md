@@ -67,12 +67,13 @@ Los errores se devuelven siempre con el mismo formato, y la interfaz los muestra
 
 ## Arquitectura
 
-```
-navegador ──▶ frontend (React) ──▶ backend (FastAPI) ──┬──▶ extractor-gemini (FastAPI) ──▶ Gemini API
-                                         │             └──▶ extractor-vertex (FastAPI) ──▶ Vertex AI
-                                         ▼
-                                Cloud SQL (PostgreSQL)
-```
+![Diagrama de despliegue en Google Cloud](doc/img/diagrama-despliegue.svg)
+
+- El **frontend** se sirve desde Cloud Run; el navegador del usuario llama al **backend** con un token JWT.
+- El **backend** guarda los cuestionarios en **Cloud SQL** (PostgreSQL), conectado por el socket de Cloud SQL, e invoca a los **extractores** con un token de identidad de Google (🔑).
+- Los **extractores** son privados: solo el backend puede invocarlos. `extractor-vertex` usa **Vertex AI**, dentro del proyecto de GCP, con la identidad de su service account; `extractor-gemini` usa la **Gemini API de Google AI Studio**, fuera del proyecto, con una API key guardada en Secret Manager.
+
+Diagrama editable con [draw.io](https://app.diagrams.net): [`doc/img/diagrama-despliegue.svg`](doc/img/diagrama-despliegue.svg).
 
 | Servicio           | Puerto | Qué hace |
 |--------------------|--------|----------|
@@ -93,6 +94,72 @@ navegador ──▶ frontend (React) ──▶ backend (FastAPI) ──┬──
 > - [Librería compartida y por qué es local y no un paquete desde GitHub](doc/14-extractor-gemini.md#por-qué-una-librería-local-y-no-un-paquete-desde-github) ([video 6](https://youtu.be/qP7xNOG01CU)).
 > - [Extractores privados: solo el backend los invoca](doc/16-backend.md#plan-que-solo-el-backend-consuma-los-extractores) ([video 7](https://youtu.be/XE60ctTc6mQ)).
 > - [PostgreSQL en Cloud SQL en lugar de Firestore](doc/16-backend.md#decisión-postgresql-en-lugar-de-firestore) y [capas de DDD](doc/16-backend.md#código-capas-de-ddd) ([video 8](https://youtu.be/SLykm3qkLLs)).
+
+### Flujo de una extracción
+
+Desde el inicio de sesión hasta que el cuestionario aparece en pantalla, con los posibles errores de cada paso:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant F as Frontend (React)
+    participant B as Backend (FastAPI)
+    participant G as Google (metadatos de Cloud Run)
+    participant E as Extractor (Gemini API o Vertex AI)
+    participant M as Modelo Gemini
+    participant DB as Cloud SQL (PostgreSQL)
+
+    U->>F: Usuario y contraseña
+    F->>B: POST /auth/login
+    B->>B: Verifica la contraseña contra el hash argon2
+    B-->>F: JWT (vence en 8 horas)
+
+    U->>F: Elige el modelo y sube el archivo
+    F->>F: Valida extensión, archivo vacío y tamaño (10 MB)
+    F->>B: POST /v1/questionnaires/extract?proveedor=gemini con el JWT
+    alt JWT ausente, inválido o vencido
+        B-->>F: 401 no_autenticado / token_invalido / token_vencido
+    else JWT válido
+        B->>G: Pide un ID token con la URL del extractor como audience
+        G-->>B: ID token de backend-runtime
+        B->>E: Reenvía el archivo con el ID token
+        Note over E: Cloud Run verifica el ID token y que backend-runtime tenga run.invoker
+        E->>E: Valida extensión, tamaño y contenido real del archivo
+        alt Archivo inválido
+            E-->>B: 400 archivo_vacio / 413 archivo_demasiado_grande / 415 formato_invalido
+        else Archivo válido
+            alt PDF
+                E->>M: Bytes del PDF, instrucciones y esquema JSON
+            else DOCX o XLSX
+                E->>E: Convierte el documento a texto
+                E->>M: Texto, instrucciones y esquema JSON
+            end
+            M-->>E: JSON del cuestionario
+            E->>E: Valida la respuesta contra el esquema de Pydantic
+            alt Límite de uso del modelo
+                E-->>B: 429 limite_de_uso
+            else Respuesta cortada
+                E-->>B: 422 documento_demasiado_grande
+            else Respuesta fuera del esquema
+                E-->>B: 502 respuesta_invalida
+            else Sin ítems
+                E-->>B: 422 sin_items
+            else Cuestionario válido
+                E-->>B: 200 cuestionario
+            end
+        end
+        B-->>F: La respuesta del extractor, sin cambios
+    end
+    F-->>U: Cuestionario en pantalla o mensaje de error
+
+    opt Guardar
+        U->>F: Guardar
+        F->>B: POST /v1/questionnaires con el JWT
+        B->>DB: INSERT en questionnaires (cuestionario en JSONB)
+        B-->>F: 201 cuestionario guardado
+    end
+```
 
 ## Correr localmente
 
@@ -137,6 +204,47 @@ Las variables locales están en [`.env.example`](.env.example). Detalle de cada 
 Las claves nunca van en el repositorio: en local salen de `.env` (ignorado por git) y en Cloud Run, de **Secret Manager**.
 
 > Detalle: [credenciales de Vertex AI aisladas de otras cuentas](doc/4-extractor-vertex.md#credenciales-de-vertex-ai-local-y-cloud-run), [Docker Compose en dos modos](doc/2-aplicacion-nativa.md#docker-compose-en-dos-modos) y [generar las credenciales del backend](doc/16-backend.md#generar-las-credenciales).
+
+## Despliegue continuo
+
+Cada merge a `main` prueba y despliega los 4 servicios en Cloud Run. Detalle en [doc/2-aplicacion-nativa.md](doc/2-aplicacion-nativa.md#paso-5-tests-y-pipeline-de-github-actions).
+
+```mermaid
+flowchart TD
+    PR["Pull request"] --> CI
+    MERGE["Merge a main"] --> CI
+
+    subgraph CI["Integración continua: en cada pull request y en cada push a main"]
+        direction LR
+        subgraph TESTS["test-python: matriz en paralelo"]
+            direction TB
+            T1["libs/questionnaire-core"]
+            T2["extractor-vertex"]
+            T3["extractor-gemini"]
+            T4["backend"]
+        end
+        BF["build-frontend: npm ci y npm run build"]
+    end
+
+    CI --> CHECK{"¿Es un push a main y pasaron todos los jobs?"}
+    CHECK -- "No: pull request o algún job falló" --> STOP["No se despliega. Cloud Run sigue con la versión anterior"]
+    CHECK -- "Sí" --> AUTH
+
+    AUTH["Autenticación con Workload Identity Federation: GitHub emite un token OIDC, GCP lo valida y entrega un token temporal de github-deployer, sin llaves en el repositorio"]
+
+    AUTH --> DEPLOY
+
+    subgraph DEPLOY["deploy: matriz en paralelo, una imagen por servicio"]
+        direction TB
+        D1["extractor-vertex · puerto 8080 · contexto: raíz"]
+        D2["extractor-gemini · puerto 7070 · contexto: raíz"]
+        D3["backend · puerto 9090 · contexto: raíz"]
+        D4["frontend · puerto 3000 · contexto: frontend/"]
+    end
+
+    DEPLOY --> BUILD["docker build y push a Artifact Registry, con el SHA del commit como etiqueta"]
+    BUILD --> RUN["gcloud run deploy --port: Cloud Run crea una revisión nueva y conserva variables, secretos, service account y permisos"]
+```
 
 ## Tests
 
@@ -195,13 +303,26 @@ Gemini API y Vertex AI dieron resultados idénticos en los tres casos.
 
 ## Además de lo pedido
 
-- **Dos proveedores** (Gemini API y Vertex AI) con el mismo código, gracias a una librería compartida, y sus resultados comparados con los mismos ejemplos.
-- **Extracción de todas las hojas de un Excel en paralelo**, cada una como un cuestionario.
-- **Inicio de sesión** con JWT y contraseña con hash argon2.
-- **Cuestionarios guardados** en PostgreSQL (Cloud SQL), con capas de DDD y migraciones con Alembic.
-- **Extractores privados:** solo el backend los invoca, con identidad de Google.
-- **CI/CD** con GitHub Actions y Workload Identity Federation: sin llaves de GCP en el repositorio.
-- **Misma imagen en local y en la nube**, con Docker Compose para desarrollo.
+| Extra | Qué aporta | Detalle |
+|---|---|---|
+| **Dos proveedores de LLM** | Gemini API y Vertex AI con el mismo código; sus resultados se compararon con los mismos ejemplos y fueron idénticos | [doc 14](doc/14-extractor-gemini.md#comparación-con-vertex-ai) |
+| **Librería compartida** (`questionnaire-core`) | Modelos, validación, lectura de archivos, prompt y API se escriben una sola vez; cada extractor es solo configuración y cliente | [doc 14](doc/14-extractor-gemini.md#librería-questionnaire-core) |
+| **Todas las hojas de un Excel en paralelo** | Un endpoint especializado procesa cada hoja como un cuestionario, con errores aislados por hoja | [doc 4](doc/4-extractor-vertex.md#parte-4-excel-y-emparejamiento) |
+| **Inicio de sesión** | JWT, contraseña con hash argon2, el mismo error para usuario o contraseña incorrectos y tiempo de respuesta constante | [doc 16](doc/16-backend.md#paso-2-inicio-de-sesión-de-un-solo-usuario) |
+| **Cuestionarios guardados** | PostgreSQL en Cloud SQL, con capas de DDD (dominio, casos de uso, repositorio, API) y migraciones con Alembic | [doc 16](doc/16-backend.md#paso-4-base-de-datos-en-cloud-sql) |
+| **Extractores privados** | Solo el backend los invoca, con un token de identidad de Google; desde internet responden `403`. Nadie puede consumir el modelo sin iniciar sesión | [doc 16](doc/16-backend.md#plan-que-solo-el-backend-consuma-los-extractores) |
+| **Secretos fuera del código** | Workload Identity Federation para el CI/CD y Secret Manager para las claves: no hay llaves ni contraseñas en el repositorio | [doc 2](doc/2-aplicacion-nativa.md#paso-4-workload-identity-federation), [doc 14](doc/14-extractor-gemini.md#configuración-en-gcp) |
+| **Permisos mínimos** | Una service account por servicio, con solo los permisos que usa | [doc 4](doc/4-extractor-vertex.md#configuración-en-gcp), [doc 16](doc/16-backend.md#permisos-de-backend-runtime) |
+| **CI/CD** | GitHub Actions: tests en cada pull request y despliegue de los 4 servicios en cada merge a `main` | [doc 2](doc/2-aplicacion-nativa.md#paso-5-tests-y-pipeline-de-github-actions) |
+| **Aplicación nativa de nube** | La misma imagen corre en local con Docker Compose y en Cloud Run; modo desarrollo con recarga en caliente | [doc 2](doc/2-aplicacion-nativa.md#lo-que-se-ha-hecho) |
+| **Interfaz completa** | Diseño propio solo con CSS, indicadores de carga, errores visibles, validación del archivo antes de subirlo y modal de cuestionarios guardados | [doc 21](doc/21-frontend-advanced.md) |
+| **Trazabilidad** | Una rama por etapa, documentación de cada decisión y de los problemas encontrados, y videos de avance | [Documentación y videos](#documentación-y-videos) |
+
+## Limitaciones conocidas
+
+- **Sobreingeniería deliberada.** Para un MVP, cinco servicios, identidad entre servicios, DDD y migraciones son más de lo necesario: la extracción en sí es simple y está aislada en la librería compartida. Se hizo así a propósito, para mostrar cómo se diseñaría la solución en un entorno real (seguridad, despliegue continuo, persistencia y separación de responsabilidades). Una versión mínima sería un solo servicio con el extractor y el frontend.
+- **Las migraciones corren al arrancar el contenedor** del backend (`alembic upgrade head` antes de `uvicorn`). Con una o pocas instancias funciona bien: si ya están aplicadas, no hace nada. Con muchas instancias arrancando a la vez podrían competir por aplicarlas; lo correcto sería ejecutarlas como un paso aparte del despliegue, por ejemplo un Cloud Run Job.
+- **Los tests del backend usan SQLite en memoria**, no PostgreSQL. Se decidió así por tiempo: son rápidos y no necesitan servidor, y el modelo usa JSON genérico fuera de PostgreSQL y JSONB en PostgreSQL. La verificación contra PostgreSQL 17 real (migración, guardar, listar, ver, eliminar y tipos de columna) se hizo a mano en un contenedor, no en el CI. Lo correcto sería que el CI levantara un PostgreSQL en Docker y corriera los tests contra él.
 
 ## Documentación y videos
 
