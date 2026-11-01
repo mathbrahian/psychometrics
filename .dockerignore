@@ -1,9 +1,10 @@
-# Contexto de build de los extractores (raíz del repo): solo entra lo que necesitan las imágenes.
+# Contexto de build de los servicios Python (raíz del repo): solo entra lo que necesitan las imágenes.
 # El frontend se construye con su propio contexto (frontend/.dockerignore).
 *
 !libs/questionnaire-core/
 !extractor-vertex/
 !extractor-gemini/
+!backend/
 
 **/__pycache__
 **/.venv

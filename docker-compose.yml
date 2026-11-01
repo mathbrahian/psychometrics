@@ -32,6 +32,20 @@ services:
       # API key de AI Studio, desde .env. Nunca va en el repositorio.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "9090:9090"
+    environment:
+      PORT: 9090
+      CORS_ORIGINS: http://localhost:3000
+      # Usuario único. Se generan con backend/scripts/hash_password.py y van en .env.
+      AUTH_USERNAME: ${AUTH_USERNAME:-}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+
   frontend:
     build: ./frontend
     ports:

@@ -18,6 +18,12 @@ services:
       - ./extractor-gemini/app:/app/app
       - ./libs/questionnaire-core/questionnaire_core:/app/questionnaire_core
 
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 9090 --reload
+    volumes:
+      - ./backend/app:/app/app
+      - ./libs/questionnaire-core/questionnaire_core:/app/questionnaire_core
+
   frontend:
     build:
       target: build
