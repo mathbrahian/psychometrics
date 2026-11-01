@@ -1,0 +1,58 @@
+# backend: inicio de sesión y extracción a través del backend.
+# Requiere la extensión REST Client de VS Code (humao.rest-client): clic en "Send Request" sobre cada una.
+# Levantar antes el compose. Las peticiones de extracción llaman a los extractores y tienen costo.
+
+@baseUrl = http://localhost:9090
+
+### 1. Iniciar sesión (cambiar usuario y contraseña por los del .env)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "usuario": "admin", "contrasena": "cambiar" }
+
+### 2. Usuario autenticado
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 3. Extraer con Gemini API
+POST {{baseUrl}}/v1/questionnaires/extract?proveedor=gemini
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ../examples/01-tipo-doc/cuestionario.docx
+--boundary--
+
+### 4. Extraer con Vertex AI
+POST {{baseUrl}}/v1/questionnaires/extract?proveedor=vertex
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.pdf"
+Content-Type: application/pdf
+
+< ../examples/03-tipo-pdf/cuestionario.pdf
+--boundary--
+
+### 5. Todas las hojas del Excel
+POST {{baseUrl}}/v1/questionnaires/extract-sheets?proveedor=gemini
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="cuestionario.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ../examples/02-tipo-xlsx/cuestionario.xlsx
+--boundary--
+
+### 6. Error: sin iniciar sesión
+POST {{baseUrl}}/v1/questionnaires/extract
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary--

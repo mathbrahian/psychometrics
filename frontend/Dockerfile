@@ -19,7 +19,7 @@ COPY --from=build /app/dist ./dist
 COPY docker-entrypoint.sh ./
 
 ENV PORT=3000 \
-    EXTRACTOR_VERTEX_URL=http://localhost:8080
+    BACKEND_URL=http://localhost:9090
 
 EXPOSE 3000
 

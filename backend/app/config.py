@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     JWT_SECRET: str = ""
     JWT_EXPIRE_MINUTES: int = 480
 
+    # Extractores. En local se llaman por el nombre del servicio del compose y sin token;
+    # en Cloud Run, por su URL y con un token de identidad de Google (EXTRACTOR_AUTH=id_token).
+    EXTRACTOR_VERTEX_URL: str = ""
+    EXTRACTOR_GEMINI_URL: str = ""
+    EXTRACTOR_AUTH: str = "none"
+    EXTRACTOR_TIMEOUT_SECONDS: float = 120.0
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

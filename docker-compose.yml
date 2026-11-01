@@ -45,6 +45,14 @@ services:
       AUTH_USERNAME: ${AUTH_USERNAME:-}
       AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH:-}
       JWT_SECRET: ${JWT_SECRET:-}
+      # El backend llama a los extractores desde su contenedor: por el nombre del servicio, no localhost.
+      # En local no hay tokens de identidad de Google, por eso EXTRACTOR_AUTH=none.
+      EXTRACTOR_VERTEX_URL: http://extractor-vertex:8080
+      EXTRACTOR_GEMINI_URL: http://extractor-gemini:7070
+      EXTRACTOR_AUTH: none
+    depends_on:
+      - extractor-vertex
+      - extractor-gemini
 
   frontend:
     build: ./frontend
@@ -53,6 +61,6 @@ services:
     environment:
       PORT: 3000
       # La llamada la hace el navegador, por eso es localhost y no el nombre del servicio.
-      EXTRACTOR_VERTEX_URL: http://localhost:8080
+      BACKEND_URL: http://localhost:9090
     depends_on:
-      - extractor-vertex
+      - backend
