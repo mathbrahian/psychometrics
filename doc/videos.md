@@ -2,6 +2,8 @@
 
 Registro en video de cada etapa del proyecto, en el mismo orden que los documentos de `doc/`.
 
+**Lista de reproducción completa:** [ver en YouTube](https://www.youtube.com/playlist?list=PLFASCKITNB-c).
+
 | # | Video | Documentación relacionada | Contenido |
 |---|-------|---------------------------|-----------|
 | 1 | [Ver video](https://youtu.be/JHTu_3EpiO4) | [1 - Lectura y planeación](1-lectura-y-planeacion.md), [2 - Aplicación nativa](2-aplicacion-nativa.md) | Lectura de la prueba, planeación y preparación del entorno nativo de nube |
@@ -14,3 +16,4 @@ Registro en video de cada etapa del proyecto, en el mismo orden que los document
 | 8 | [Ver video](https://youtu.be/SLykm3qkLLs) | [16 - Backend](16-backend.md) | Base de datos en Cloud SQL con PostgreSQL: creación de la instancia más barata, conexión desde Cloud Run, capas de DDD, migraciones con Alembic y endpoints para guardar, listar y eliminar cuestionarios |
 | 9 | [Ver video](https://youtu.be/HHIYMdQgaWQ) | [21 - Frontend](21-frontend-advanced.md) | Frontend plano: inicio de sesión, extracción con Gemini API o Vertex AI, cuestionario en pantalla, descarga del JSON, guardado, lista, eliminación y limpieza de la consulta |
 | 10 | [Ver video](https://www.youtube.com/watch?v=7phXoXy2F5g) | [21 - Frontend](21-frontend-advanced.md) | Evolución del frontend solo con CSS: tipografía Poppins y paleta violeta, indicadores de carga, mensajes de error y confirmación visibles, y modal para ver los cuestionarios guardados |
+| 11 | [Ver video](https://www.youtube.com/watch?v=d8_PQ-Wib1s) | [README](../README.md) | **Video final:** recorrido por la solución completa |
